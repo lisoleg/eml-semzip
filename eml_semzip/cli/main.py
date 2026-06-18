@@ -275,6 +275,79 @@ def cmd_info(args: argparse.Namespace) -> None:
             print("Not a valid SemPkt file")
 
 
+def cmd_incremental_compress(args: argparse.Namespace) -> None:
+    """Run incremental compress command."""
+    from ..pipeline import compress_incremental
+    from ..io.report import CompressionReport
+
+    # Load old graph
+    if args.old_graph.endswith(".json"):
+        old = EMLHypergraph.from_json(args.old_graph)
+    else:
+        old = EMLHypergraph.from_pickle(args.old_graph)
+
+    # Load new graph
+    if args.new_graph.endswith(".json"):
+        new = EMLHypergraph.from_json(args.new_graph)
+    else:
+        new = EMLHypergraph.from_pickle(args.new_graph)
+
+    # Init KB
+    kb = None
+    if args.kb:
+        from ..kb.eml_lite_kb import EMLLiteKB
+        kb = EMLLiteKB.load(args.kb)
+    elif args.use_builtin_kb:
+        kb = create_builtin_kb()
+
+    # Compress
+    delta_bytes = compress_incremental(old, new, kb=kb,
+                                     theta_dead=args.theta_dead,
+                                     keep_ratio=args.keep_ratio)
+
+    # Write output
+    with open(args.output, "wb") as f:
+        f.write(delta_bytes)
+
+    print(f"Incremental compress: {args.old_graph} + {args.new_graph} -> {args.output}")
+    print(f"  Delta size: {len(delta_bytes)} bytes")
+
+
+def cmd_incremental_decompress(args: argparse.Namespace) -> None:
+    """Run incremental decompress command."""
+    from ..pipeline import decompress_incremental
+
+    # Load old graph
+    if args.old_graph.endswith(".json"):
+        old = EMLHypergraph.from_json(args.old_graph)
+    else:
+        old = EMLHypergraph.from_pickle(args.old_graph)
+
+    # Read delta
+    with open(args.delta_file, "rb") as f:
+        delta_bytes = f.read()
+
+    # Init KB
+    kb = None
+    if args.kb:
+        from ..kb.eml_lite_kb import EMLLiteKB
+        kb = EMLLiteKB.load(args.kb)
+    elif args.use_builtin_kb:
+        kb = create_builtin_kb()
+
+    # Decompress
+    result = decompress_incremental(old, delta_bytes, kb=kb)
+
+    # Write output
+    if args.output.endswith(".json"):
+        result.to_json(args.output)
+    else:
+        result.to_pickle(args.output)
+
+    print(f"Incremental decompress: {args.old_graph} + {args.delta_file} -> {args.output}")
+    print(f"  Result: {result.node_count()} nodes, {result.edge_count()} edges")
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Build the CLI argument parser.
 
@@ -318,6 +391,38 @@ def build_parser() -> argparse.ArgumentParser:
     i = sub.add_parser("info", help="Show file info")
     i.add_argument("file", help="Input file (.json, .pickle, or .esz)")
 
+    # Incremental compress subcommand
+    ic = sub.add_parser("incremental-compress", help="Incremental compress (delta)")
+    ic.add_argument("old_graph", help="Base hypergraph file (.json or .pickle)")
+    ic.add_argument("new_graph", help="Updated hypergraph file (.json or .pickle)")
+    ic.add_argument("output", help="Output delta file (.esz)")
+    ic.add_argument("--theta-dead", type=float, default=0.45, help="Dead-zero threshold")
+    ic.add_argument("--keep-ratio", type=float, default=0.15, help="Keep ratio for k-snap")
+    ic.add_argument("--kb", help="KB file for isomorphism merging")
+    ic.add_argument("--use-builtin-kb", action="store_true", help="Use built-in KB")
+
+    # Incremental decompress subcommand
+    id_ = sub.add_parser("incremental-decompress", help="Apply incremental delta to base graph")
+    id_.add_argument("old_graph", help="Base hypergraph file (.json or .pickle)")
+    id_.add_argument("delta_file", help="Delta file (.esz)")
+    id_.add_argument("output", help="Output reconstructed hypergraph (.json or .pickle)")
+    id_.add_argument("--kb", help="KB file for reconstruction")
+    id_.add_argument("--use-builtin-kb", action="store_true", help="Use built-in KB")
+
+    # Image to graph subcommand
+    img = sub.add_parser("image-to-graph", help="Convert image to hypergraph")
+    img.add_argument("image", help="Input image file")
+    img.add_argument("output", help="Output hypergraph file (.json)")
+    img.add_argument("--patch-size", type=int, default=16, help="Patch size (default 16)")
+    img.add_argument("--max-patches", type=int, default=256, help="Max patches (default 256)")
+
+    # Audio to graph subcommand
+    aud = sub.add_parser("audio-to-graph", help="Convert audio to hypergraph")
+    aud.add_argument("audio", help="Input audio file (WAV)")
+    aud.add_argument("output", help="Output hypergraph file (.json)")
+    aud.add_argument("--samples-per-node", type=int, default=1024, help="Samples per node (default 1024)")
+    aud.add_argument("--max-nodes", type=int, default=512, help="Max nodes (default 512)")
+
     # Web subcommand
     w = sub.add_parser("web", help="Start web UI server")
     w.add_argument("--host", default="127.0.0.1", help="Host address (default: 127.0.0.1)")
@@ -341,6 +446,10 @@ def main(argv: Optional[List[str]] = None) -> None:
         cmd_decompress(args)
     elif args.command == "batch-compress":
         cmd_batch_compress(args)
+    elif args.command == "incremental-compress":
+        cmd_incremental_compress(args)
+    elif args.command == "incremental-decompress":
+        cmd_incremental_decompress(args)
     elif args.command == "web":
         from ..web.server import run_server
         run_server(host=args.host, port=args.port)

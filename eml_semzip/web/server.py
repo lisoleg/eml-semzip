@@ -78,6 +78,10 @@ class EMLSemZipHandler(BaseHTTPRequestHandler):
             self._handle_compress()
         elif self.path == "/api/decompress":
             self._handle_decompress()
+        elif self.path == "/api/incremental-compress":
+            self._handle_incremental_compress()
+        elif self.path == "/api/incremental-decompress":
+            self._handle_incremental_decompress()
         else:
             self._send_json({"error": "Not found"}, 404)
 
@@ -163,6 +167,86 @@ class EMLSemZipHandler(BaseHTTPRequestHandler):
                 "graph": graph.to_dict(),
                 "nodes": graph.node_count(),
                 "edges": graph.edge_count(),
+            })
+
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            self._send_json({"error": str(e)}, 500)
+
+
+    def _handle_incremental_compress(self) -> None:
+        """Handle /api/incremental-compress request."""
+        try:
+            body = self._read_body()
+            request = json.loads(body.decode("utf-8"))
+            old_graph_data = request.get("old_graph", {})
+            new_graph_data = request.get("new_graph", {})
+            use_builtin_kb = request.get("use_builtin_kb", False)
+
+            from ..models.hypergraph import EMLHypergraph
+            from ..models.node import Node
+            from ..models.hyperedge import HyperEdge
+            from ..pipeline.incremental import compress_incremental
+            from ..kb.builtin_kb import create_builtin_kb
+
+            def _build_graph(data):
+                g = EMLHypergraph()
+                for nd in data.get("nodes", []):
+                    g.add_node(Node(nd["node_id"], nd.get("attributes", {})))
+                for ed in data.get("edges", []):
+                    g.add_edge(HyperEdge.from_dict(ed))
+                return g
+
+            old = _build_graph(old_graph_data)
+            new = _build_graph(new_graph_data)
+            kb = create_builtin_kb() if use_builtin_kb else None
+
+            delta_bytes = compress_incremental(old, new, kb=kb)
+
+            self._send_json({
+                "status": "ok",
+                "delta_bytes": len(delta_bytes),
+                "delta_b64": base64.b64encode(delta_bytes).decode("ascii"),
+            })
+
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            self._send_json({"error": str(e)}, 500)
+
+
+    def _handle_incremental_decompress(self) -> None:
+        """Handle /api/incremental-decompress request."""
+        try:
+            body = self._read_body()
+            request = json.loads(body.decode("utf-8"))
+            old_graph_data = request.get("old_graph", {})
+            delta_b64 = request.get("delta_b64", "")
+            use_builtin_kb = request.get("use_builtin_kb", False)
+
+            from ..models.hypergraph import EMLHypergraph
+            from ..models.node import Node
+            from ..pipeline.incremental import decompress_incremental
+            from ..kb.builtin_kb import create_builtin_kb
+
+            old = EMLHypergraph()
+            for nd in old_graph_data.get("nodes", []):
+                old.add_node(Node(nd["node_id"], nd.get("attributes", {})))
+            for ed in old_graph_data.get("edges", []):
+                from ..models.hyperedge import HyperEdge
+                old.add_edge(HyperEdge.from_dict(ed))
+
+            delta_bytes = base64.b64decode(delta_b64)
+            kb = create_builtin_kb() if use_builtin_kb else None
+
+            result = decompress_incremental(old, delta_bytes, kb=kb)
+
+            self._send_json({
+                "status": "ok",
+                "graph": result.to_dict(),
+                "nodes": result.node_count(),
+                "edges": result.edge_count(),
             })
 
         except Exception as e:

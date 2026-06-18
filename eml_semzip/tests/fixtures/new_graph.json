@@ -1,0 +1,50 @@
+{
+  "nodes": [
+    {
+      "node_id": "n1",
+      "attributes": {
+        "type": "person"
+      }
+    },
+    {
+      "node_id": "n2",
+      "attributes": {
+        "type": "person"
+      }
+    },
+    {
+      "node_id": "n3",
+      "attributes": {
+        "type": "person"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "edge_id": "e1",
+      "nodes": [
+        "n1",
+        "n2"
+      ],
+      "I_value": 0.9,
+      "base_weight": 1.0,
+      "dir_factor": 1.0,
+      "predicate": "knows",
+      "d_sem": 0.0,
+      "attr_types": []
+    },
+    {
+      "edge_id": "e2",
+      "nodes": [
+        "n1",
+        "n3"
+      ],
+      "I_value": 0.8,
+      "base_weight": 1.0,
+      "dir_factor": 1.0,
+      "predicate": "knows",
+      "d_sem": 0.0,
+      "attr_types": []
+    }
+  ]
+}

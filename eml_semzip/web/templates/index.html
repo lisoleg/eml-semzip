@@ -3,191 +3,355 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EML-SemZip 语义压缩工具</title>
+    <title>EML-SemZip v2.0 语义压缩工具</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #0a0e27;
+            color: #e0e0e0;
             min-height: 100vh;
-            padding: 20px;
-        }
-        .container {
-            max-width: 900px;
-            margin: 0 auto;
-            background: white;
-            border-radius: 16px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-            overflow: hidden;
         }
         .header {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
-            padding: 30px;
-            text-align: center;
+            padding: 18px 30px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
         }
-        .header h1 { font-size: 28px; margin-bottom: 8px; }
-        .header p { opacity: 0.9; font-size: 14px; }
-        .content { padding: 30px; }
-        .section { margin-bottom: 30px; }
+        .header h1 { font-size: 22px; }
+        .header .badge {
+            background: rgba(255,255,255,0.2);
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+        }
+        .main-layout {
+            display: flex;
+            height: calc(100vh - 62px);
+        }
+        .sidebar {
+            width: 340px;
+            min-width: 340px;
+            background: #131835;
+            padding: 20px;
+            overflow-y: auto;
+            border-right: 1px solid #1e2745;
+        }
+        .viz-area {
+            flex: 1;
+            position: relative;
+            background: #0a0e27;
+        }
+        .section { margin-bottom: 22px; }
         .section h2 {
-            font-size: 18px;
-            color: #333;
-            margin-bottom: 15px;
-            padding-bottom: 8px;
-            border-bottom: 2px solid #667eea;
+            font-size: 14px;
+            color: #8b9ce0;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
         .upload-area {
-            border: 3px dashed #ccc;
-            border-radius: 12px;
-            padding: 40px;
+            border: 2px dashed #2a3a6e;
+            border-radius: 10px;
+            padding: 20px;
             text-align: center;
             cursor: pointer;
             transition: all 0.3s;
-            background: #fafafa;
+            background: #0d1229;
         }
         .upload-area:hover, .upload-area.dragover {
             border-color: #667eea;
-            background: #f0f4ff;
+            background: #131835;
         }
         .upload-area input { display: none; }
-        .upload-area .icon { font-size: 48px; margin-bottom: 10px; }
-        .upload-area p { color: #666; }
-        .params {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
-            margin-bottom: 20px;
+        .upload-area .icon { font-size: 36px; margin-bottom: 8px; }
+        .upload-area p { color: #6b7db0; font-size: 13px; }
+
+        .param-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 12px;
         }
-        .param label {
-            display: block;
-            font-size: 13px;
-            color: #666;
-            margin-bottom: 5px;
-        }
+        .param label { font-size: 11px; color: #6b7db0; margin-bottom: 4px; display: block; }
         .param input {
             width: 100%;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            font-size: 14px;
+            padding: 8px;
+            border: 1px solid #1e2745;
+            border-radius: 6px;
+            background: #0d1229;
+            color: #e0e0e0;
+            font-size: 13px;
         }
-        .buttons { display: flex; gap: 10px; margin-bottom: 20px; }
-        button {
-            flex: 1;
-            padding: 12px;
+        .param input:focus { outline: none; border-color: #667eea; }
+
+        .btn {
+            width: 100%;
+            padding: 10px;
             border: none;
             border-radius: 8px;
-            font-size: 15px;
+            font-size: 14px;
             font-weight: 600;
             cursor: pointer;
             transition: all 0.3s;
+            margin-bottom: 8px;
         }
         .btn-compress {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
         }
-        .btn-compress:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(102,126,234,0.4); }
-        .btn-decompress {
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-            color: white;
+        .btn-decompress { background: #1e2745; color: #8b9ce0; }
+        .btn-decompress:hover { background: #253360; }
+        .btn-edit { background: #1a3a5e; color: #5cb8ff; }
+        .btn-edit:hover { background: #1e4570; }
+        .btn-add-node {
+            background: #1e2745;
+            color: #4cdaa6;
+            font-size: 12px;
+            padding: 8px;
         }
-        .btn-decompress:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(245,87,108,0.4); }
-        .result {
-            background: #f8f9fa;
-            border-radius: 12px;
-            padding: 20px;
-            display: none;
-        }
-        .result.show { display: block; }
-        .result h3 { font-size: 16px; color: #333; margin-bottom: 15px; }
-        .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; }
-        .stat {
-            background: white;
-            padding: 15px;
+
+        .result-box {
+            background: #0d1229;
             border-radius: 8px;
-            border-left: 4px solid #667eea;
+            padding: 14px;
+            display: none;
+            margin-top: 12px;
         }
-        .stat .label { font-size: 12px; color: #999; margin-bottom: 5px; }
-        .stat .value { font-size: 24px; font-weight: bold; color: #333; }
-        .download-btn {
+        .result-box.show { display: block; }
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 0;
+            border-bottom: 1px solid #1e2745;
+            font-size: 13px;
+        }
+        .stat-row .label { color: #6b7db0; }
+        .stat-row .value { color: #4cdaa6; font-weight: bold; }
+
+        .error-box {
+            background: #2a0f0f;
+            color: #ff6b6b;
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 12px;
+            display: none;
+            font-size: 13px;
+        }
+        .error-box.show { display: block; }
+
+        /* D3 Visualization */
+        #graph-svg { width: 100%; height: 100%; display: block; }
+        .node-circle { cursor: pointer; }
+        .edge-line { stroke: #2a3a6e; stroke-width: 1.5; }
+        .hyperedge-node { cursor: pointer; }
+        .node-label { fill: #e0e0e0; font-size: 11px; pointer-events: none; }
+        .tooltip {
+            position: absolute;
+            background: #131835;
+            border: 1px solid #2a3a6e;
+            border-radius: 8px;
+            padding: 10px;
+            font-size: 12px;
+            color: #e0e0e0;
+            pointer-events: none;
+            display: none;
+            z-index: 100;
+            max-width: 250px;
+        }
+
+        /* Editor panel */
+        .editor-panel {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 260px;
+            background: #131835;
+            border: 1px solid #2a3a6e;
+            border-radius: 10px;
+            padding: 16px;
+            display: none;
+            z-index: 50;
+        }
+        .editor-panel.show { display: block; }
+        .editor-panel h3 { font-size: 14px; margin-bottom: 10px; color: #8b9ce0; }
+        .editor-row { margin-bottom: 10px; }
+        .editor-row label { font-size: 11px; color: #6b7db0; display: block; margin-bottom: 3px; }
+        .editor-row input, .editor-row select {
+            width: 100%;
+            padding: 7px;
+            border: 1px solid #1e2745;
+            border-radius: 6px;
+            background: #0d1229;
+            color: #e0e0e0;
+            font-size: 12px;
+        }
+        .editor-row input:focus { outline: none; border-color: #667eea; }
+        .btn-small {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            margin-right: 6px;
+        }
+        .btn-save { background: #4cdaa6; color: #0a0e27; }
+        .btn-cancel { background: #1e2745; color: #8b9ce0; }
+        .btn-delete { background: #ff6b6b; color: white; }
+
+        .mode-toggle {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 12px;
+        }
+        .mode-btn {
+            flex: 1;
+            padding: 7px;
+            border: 1px solid #1e2745;
+            border-radius: 6px;
+            background: #0d1229;
+            color: #6b7db0;
+            font-size: 12px;
+            cursor: pointer;
+            text-align: center;
+        }
+        .mode-btn.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .viz-controls {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            display: flex;
+            gap: 8px;
+        }
+        .viz-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border: 1px solid #2a3a6e;
+            background: #131835;
+            color: #8b9ce0;
+            font-size: 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .viz-btn:hover { background: #1e2745; }
+
+        .download-link {
             display: inline-block;
-            margin-top: 15px;
-            padding: 10px 20px;
+            margin-top: 10px;
+            padding: 8px 16px;
             background: #667eea;
             color: white;
             text-decoration: none;
-            border-radius: 8px;
-            font-size: 14px;
+            border-radius: 6px;
+            font-size: 12px;
         }
-        .error {
-            background: #fee;
-            color: #c33;
-            padding: 15px;
-            border-radius: 8px;
-            margin-top: 15px;
-            display: none;
-        }
-        .error.show { display: block; }
-        .checkbox { display: flex; align-items: center; gap: 8px; margin-bottom: 15px; }
-        .checkbox input { width: 18px; height: 18px; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>EML-SemZip 语义压缩工具</h1>
-            <p>基于毛睿广义度量与 TOMAS 公理的极致语义压缩</p>
-        </div>
-        <div class="content">
-            <!-- Upload Section -->
+    <div class="header">
+        <h1>EML-SemZip v2.0</h1>
+        <span class="badge">增量压缩 · 可视化编辑</span>
+    </div>
+    <div class="main-layout">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <!-- Upload -->
             <div class="section">
-                <h2>1. 上传超图文件</h2>
+                <h2>1. 上传超图</h2>
                 <div class="upload-area" id="uploadArea">
                     <div class="icon">📁</div>
                     <p>点击或拖拽上传 JSON 文件</p>
                     <input type="file" id="fileInput" accept=".json,.pickle">
                 </div>
-                <div id="fileName" style="margin-top: 10px; color: #667eea; font-size: 14px;"></div>
+                <div id="fileName" style="margin-top: 8px; color: #4cdaa6; font-size: 12px;"></div>
             </div>
 
-            <!-- Params Section -->
+            <!-- Params -->
             <div class="section">
                 <h2>2. 压缩参数</h2>
-                <div class="params">
-                    <div class="param">
-                        <label>θ_dead (Dead-Zero 阈值)</label>
+                <div class="param-row">
+                    <div class="param" style="flex:1">
+                        <label>θ_dead</label>
                         <input type="number" id="thetaDead" value="0.45" min="0" max="1" step="0.01">
                     </div>
-                    <div class="param">
-                        <label>keep_ratio (语义核保留比例)</label>
+                    <div class="param" style="flex:1">
+                        <label>keep_ratio</label>
                         <input type="number" id="keepRatio" value="0.15" min="0" max="1" step="0.01">
                     </div>
                 </div>
-                <div class="checkbox">
-                    <input type="checkbox" id="useBuiltinKb" checked>
-                    <label for="useBuiltinKb">使用内置 KB (EML-Lite)</label>
-                </div>
+                <label style="font-size:12px; color:#6b7db0; display:flex; align-items:center; gap:6px;">
+                    <input type="checkbox" id="useBuiltinKb" checked> 使用内置 KB
+                </label>
             </div>
 
-            <!-- Actions Section -->
+            <!-- Actions -->
             <div class="section">
                 <h2>3. 执行操作</h2>
-                <div class="buttons">
-                    <button class="btn-compress" id="compressBtn">压缩</button>
-                    <button class="btn-decompress" id="decompressBtn">解压</button>
+                <button class="btn btn-compress" id="compressBtn">压缩</button>
+                <button class="btn btn-decompress" id="decompressBtn">解压</button>
+                <button class="btn btn-edit" id="toggleEditBtn">编辑超图</button>
+            </div>
+
+            <!-- Result -->
+            <div class="section">
+                <h2>4. 结果</h2>
+                <div class="result-box" id="resultBox">
+                    <div id="statsContent"></div>
+                    <a href="#" class="download-link" id="downloadBtn" style="display:none;"></a>
+                </div>
+                <div class="error-box" id="errorBox"></div>
+            </div>
+        </div>
+
+        <!-- Visualization Area -->
+        <div class="viz-area">
+            <svg id="graph-svg"></svg>
+            <div class="tooltip" id="tooltip"></div>
+
+            <!-- Editor Panel -->
+            <div class="editor-panel" id="editorPanel">
+                <h3 id="editorTitle">编辑节点</h3>
+                <div class="editor-row">
+                    <label>ID</label>
+                    <input type="text" id="editId" placeholder="node_id">
+                </div>
+                <div class="editor-row">
+                    <label>属性 (JSON)</label>
+                    <input type="text" id="editAttrs" placeholder='{"type":"person"}'>
+                </div>
+                <div class="editor-row" id="edgeFields" style="display:none;">
+                    <label>连接节点 (逗号分隔)</label>
+                    <input type="text" id="editNodes" placeholder="n1,n2">
+                    <label style="margin-top:8px;">I_value</label>
+                    <input type="number" id="editIValue" value="0.8" min="0" max="1" step="0.01">
+                    <label style="margin-top:8px;">Predicate</label>
+                    <input type="text" id="editPredicate" placeholder="knows">
+                </div>
+                <div style="margin-top:12px;">
+                    <button class="btn-small btn-save" id="saveEditBtn">保存</button>
+                    <button class="btn-small btn-cancel" id="cancelEditBtn">取消</button>
+                    <button class="btn-small btn-delete" id="deleteBtn" style="float:right;">删除</button>
                 </div>
             </div>
 
-            <!-- Result Section -->
-            <div class="section">
-                <h2>4. 结果</h2>
-                <div class="result" id="result">
-                    <h3>压缩报告</h3>
-                    <div class="stats" id="stats"></div>
-                    <a href="#" class="download-btn" id="downloadBtn" style="display:none;">下载文件</a>
-                </div>
-                <div class="error" id="error"></div>
+            <!-- Viz Controls -->
+            <div class="viz-controls">
+                <button class="viz-btn" id="zoomInBtn" title="放大">+</button>
+                <button class="viz-btn" id="zoomOutBtn" title="缩小">−</button>
+                <button class="viz-btn" id="resetVizBtn" title="重置">⟳</button>
+                <button class="viz-btn" id="addNodeBtn" title="添加节点">⊙</button>
+                <button class="viz-btn" id="addEdgeBtn" title="添加超边">◈</button>
             </div>
         </div>
     </div>
@@ -195,43 +359,30 @@
     <script>
         let currentGraphData = null;
         let compressedDataB64 = null;
+        let editMode = false;  // false=view, true=edit
+        let selectedElement = null;
 
-        // Upload area handlers
+        // ---------- Upload ----------
         const uploadArea = document.getElementById('uploadArea');
         const fileInput = document.getElementById('fileInput');
-
         uploadArea.addEventListener('click', () => fileInput.click());
-
-        uploadArea.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            uploadArea.classList.add('dragover');
-        });
-
-        uploadArea.addEventListener('dragleave', () => {
-            uploadArea.classList.remove('dragover');
-        });
-
-        uploadArea.addEventListener('drop', (e) => {
+        uploadArea.addEventListener('dragover', e => { e.preventDefault(); uploadArea.classList.add('dragover'); });
+        uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('dragover'));
+        uploadArea.addEventListener('drop', e => {
             e.preventDefault();
             uploadArea.classList.remove('dragover');
-            if (e.dataTransfer.files.length > 0) {
-                handleFile(e.dataTransfer.files[0]);
-            }
+            if (e.dataTransfer.files.length > 0) handleFile(e.dataTransfer.files[0]);
         });
-
-        fileInput.addEventListener('change', (e) => {
-            if (e.target.files.length > 0) {
-                handleFile(e.target.files[0]);
-            }
+        fileInput.addEventListener('change', e => {
+            if (e.target.files.length > 0) handleFile(e.target.files[0]);
         });
-
         function handleFile(file) {
             document.getElementById('fileName').textContent = `已选择: ${file.name}`;
             const reader = new FileReader();
-            reader.onload = (e) => {
+            reader.onload = e => {
                 try {
                     currentGraphData = JSON.parse(e.target.result);
-                    console.log('Graph loaded:', currentGraphData);
+                    renderGraph(currentGraphData);
                 } catch (err) {
                     showError('文件解析失败: ' + err.message);
                 }
@@ -239,135 +390,323 @@
             reader.readAsText(file);
         }
 
-        // Compress button
+        // ---------- Compress ----------
         document.getElementById('compressBtn').addEventListener('click', async () => {
-            if (!currentGraphData) {
-                showError('请先上传超图文件');
-                return;
-            }
-
+            if (!currentGraphData) { showError('请先上传超图文件'); return; }
             const thetaDead = parseFloat(document.getElementById('thetaDead').value);
             const keepRatio = parseFloat(document.getElementById('keepRatio').value);
             const useBuiltinKb = document.getElementById('useBuiltinKb').checked;
-
             try {
-                const response = await fetch('/api/compress', {
+                const resp = await fetch('/api/compress', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        graph: currentGraphData,
-                        theta_dead: thetaDead,
-                        keep_ratio: keepRatio,
-                        use_builtin_kb: useBuiltinKb,
-                    }),
+                    body: JSON.stringify({ graph: currentGraphData, theta_dead: thetaDead, keep_ratio: keepRatio, use_builtin_kb: useBuiltinKb }),
                 });
-
-                const result = await response.json();
-
+                const result = await resp.json();
                 if (result.status === 'ok') {
                     compressedDataB64 = result.compressed_b64;
                     showResult(result.report);
-                } else {
-                    showError(result.error || '压缩失败');
-                }
-            } catch (err) {
-                showError('请求失败: ' + err.message);
-            }
+                } else showError(result.error || '压缩失败');
+            } catch (err) { showError('请求失败: ' + err.message); }
         });
 
-        // Decompress button
+        // ---------- Decompress ----------
         document.getElementById('decompressBtn').addEventListener('click', async () => {
-            if (!compressedDataB64) {
-                showError('请先压缩文件，或上传 .esz 文件');
-                return;
-            }
-
+            if (!compressedDataB64) { showError('请先压缩文件'); return; }
             const useBuiltinKb = document.getElementById('useBuiltinKb').checked;
-
             try {
-                const response = await fetch('/api/decompress', {
+                const resp = await fetch('/api/decompress', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        compressed_b64: compressedDataB64,
-                        use_builtin_kb: useBuiltinKb,
-                    }),
+                    body: JSON.stringify({ compressed_b64: compressedDataB64, use_builtin_kb: useBuiltinKb }),
                 });
-
-                const result = await response.json();
-
+                const result = await resp.json();
                 if (result.status === 'ok') {
                     currentGraphData = result.graph;
-                    showResult({
-                        message: `解压成功: ${result.nodes} 节点, ${result.edges} 超边`,
-                    });
-                    // Download decompressed graph
-                    const blob = new Blob([JSON.stringify(result.graph, null, 2)], { type: 'application/json' });
-                    const url = URL.createObjectURL(blob);
-                    const a = document.getElementById('downloadBtn');
-                    a.href = url;
-                    a.download = 'decompressed.json';
-                    a.style.display = 'inline-block';
-                    a.textContent = '下载解压后的超图';
-                } else {
-                    showError(result.error || '解压失败');
-                }
-            } catch (err) {
-                showError('请求失败: ' + err.message);
-            }
+                    renderGraph(currentGraphData);
+                    showResult({ message: `解压成功: ${result.nodes} 节点, ${result.edges} 超边` });
+                } else showError(result.error || '解压失败');
+            } catch (err) { showError('请求失败: ' + err.message); }
         });
 
+        // ---------- Toggle Edit Mode ----------
+        document.getElementById('toggleEditBtn').addEventListener('click', () => {
+            editMode = !editMode;
+            document.getElementById('toggleEditBtn').textContent = editMode ? '退出编辑' : '编辑超图';
+            document.getElementById('toggleEditBtn').style.background = editMode ? '#ff6b6b' : '';
+            if (currentGraphData) renderGraph(currentGraphData);
+        });
+
+        // ---------- Viz Controls ----------
+        document.getElementById('addNodeBtn').addEventListener('click', () => openEditor('node', null));
+        document.getElementById('addEdgeBtn').addEventListener('click', () => openEditor('edge', null));
+        document.getElementById('saveEditBtn').addEventListener('click', saveEdit);
+        document.getElementById('cancelEditBtn').addEventListener('click', () => {
+            document.getElementById('editorPanel').classList.remove('show');
+        });
+        document.getElementById('deleteBtn').addEventListener('click', deleteSelected);
+
+        // ---------- D3 Visualization ----------
+        function renderGraph(graphData) {
+            if (!graphData) return;
+            const svg = d3.select('#graph-svg');
+            svg.selectAll('*').remove();
+
+            const width = svg.node().parentNode.clientWidth;
+            const height = svg.node().parentNode.clientHeight;
+            svg.attr('width', width).attr('height', height);
+
+            const g = svg.append('g');
+
+            // Zoom
+            const zoom = d3.zoom()
+                .scaleExtent([0.1, 4])
+                .on('zoom', e => g.attr('transform', e.transform));
+            svg.call(zoom);
+            document.getElementById('zoomInBtn').onclick = () => svg.transition().call(zoom.scaleBy, 1.3);
+            document.getElementById('zoomOutBtn').onclick = () => svg.transition().call(zoom.scaleBy, 0.7);
+            document.getElementById('resetVizBtn').onclick = () => svg.transition().call(zoom.transform, d3.zoomIdentity);
+
+            // Build D3-friendly data
+            const nodes = (graphData.nodes || []).map(n => ({
+                id: n.node_id,
+                label: n.node_id,
+                attrs: n.attributes || {},
+                type: 'node',
+            }));
+
+            // Hyperedges: represent as additional nodes connected to member nodes
+            const edges = [];
+            const hyperedgeNodes = [];
+            (graphData.edges || []).forEach(e => {
+                const heId = e.edge_id;
+                hyperedgeNodes.push({
+                    id: '_he_' + heId,
+                    label: heId,
+                    I_value: e.I_value,
+                    predicate: e.predicate || '',
+                    type: 'hyperedge',
+                    memberNodes: e.nodes || [],
+                });
+                (e.nodes || []).forEach(nid => {
+                    edges.push({ source: nid, target: '_he_' + heId, I_value: e.I_value });
+                });
+            });
+
+            const allNodes = nodes.concat(hyperedgeNodes);
+
+            // Force simulation
+            const simulation = d3.forceSimulation(allNodes)
+                .force('link', d3.forceLink(edges).id(d => d.id).distance(80))
+                .force('charge', d3.forceManyBody().strength(-300))
+                .force('center', d3.forceCenter(width / 2, height / 2))
+                .force('collision', d3.forceCollide().radius(40));
+
+            // Edges (lines)
+            const link = g.append('g').attr('class', 'links')
+                .selectAll('line')
+                .data(edges)
+                .join('line')
+                .attr('class', 'edge-line')
+                .attr('stroke-opacity', d => 0.3 + (d.I_value || 0.5) * 0.7);
+
+            // Hyperedge nodes (squares)
+            const heNode = g.append('g').attr('class', 'hyperedge-nodes')
+                .selectAll('rect')
+                .data(hyperedgeNodes)
+                .join('rect')
+                .attr('class', 'hyperedge-node')
+                .attr('width', 24).attr('height', 24)
+                .attr('rx', 4)
+                .attr('fill', d => {
+                    const v = d.I_value || 0.5;
+                    if (v > 0.7) return '#4cdaa6';
+                    if (v > 0.4) return '#f0c040';
+                    return '#ff6b6b';
+                })
+                .attr('stroke', '#1e2745').attr('stroke-width', 2)
+                .call(d3.drag()
+                    .on('start', dragstarted)
+                    .on('drag', dragged)
+                    .on('end', dragended))
+                .on('click', (event, d) => {
+                    if (editMode) openEditor('edge', d);
+                })
+                .on('mouseover', (event, d) => showTooltip(event, `超边: ${d.label}<br>I_value: ${d.I_value?.toFixed(2)}<br>Predicate: ${d.predicate}`))
+                .on('mouseout', hideTooltip);
+
+            // Regular nodes (circles)
+            const nodeCircle = g.append('g').attr('class', 'nodes')
+                .selectAll('circle')
+                .data(nodes)
+                .join('circle')
+                .attr('class', 'node-circle')
+                .attr('r', 18)
+                .attr('fill', d => {
+                    const t = (d.attrs && d.attrs.type) || '';
+                    if (t === 'person') return '#667eea';
+                    if (t === 'concept') return '#f093fb';
+                    return '#4cdaa6';
+                })
+                .attr('stroke', '#1e2745').attr('stroke-width', 2)
+                .call(d3.drag()
+                    .on('start', dragstarted)
+                    .on('drag', dragged)
+                    .on('end', dragended))
+                .on('click', (event, d) => {
+                    if (editMode) openEditor('node', d);
+                })
+                .on('mouseover', (event, d) => showTooltip(event, `节点: ${d.label}<br>${JSON.stringify(d.attrs)}`))
+                .on('mouseout', hideTooltip);
+
+            // Labels
+            const label = g.append('g').attr('class', 'labels')
+                .selectAll('text')
+                .data(allNodes)
+                .join('text')
+                .attr('class', 'node-label')
+                .attr('text-anchor', 'middle')
+                .attr('dy', d => d.type === 'hyperedge' ? 30 : -22)
+                .text(d => d.label.length > 12 ? d.label.slice(0, 12) + '…' : d.label);
+
+            // Update positions on simulation tick
+            simulation.on('tick', () => {
+                link
+                    .attr('x1', d => d.source.x)
+                    .attr('y1', d => d.source.y)
+                    .attr('x2', d => d.target.x)
+                    .attr('y2', d => d.target.y);
+                nodeCircle
+                    .attr('cx', d => d.x)
+                    .attr('cy', d => d.y);
+                heNode
+                    .attr('x', d => d.x - 12)
+                    .attr('y', d => d.y - 12);
+                label
+                    .attr('x', d => d.x)
+                    .attr('y', d => d.y);
+            });
+
+            function dragstarted(event, d) { if (!event.active) simulation.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; }
+            function dragged(event, d) { d.fx = event.x; d.fy = event.y; }
+            function dragended(event, d) { if (!event.active) simulation.alphaTarget(0); d.fx = null; d.fy = null; }
+        }
+
+        // ---------- Editor ----------
+        function openEditor(type, data) {
+            const panel = document.getElementById('editorPanel');
+            panel.classList.add('show');
+            selectedElement = data;
+            document.getElementById('editorTitle').textContent = data ? `编辑${type === 'node' ? '节点' : '超边'}` : `添加${type === 'node' ? '节点' : '超边'}`;
+            document.getElementById('editId').value = data ? data.label : '';
+            document.getElementById('edgeFields').style.display = type === 'edge' ? 'block' : 'none';
+
+            if (data) {
+                if (type === 'node') {
+                    document.getElementById('editAttrs').value = JSON.stringify((data.attrs || {}), null, 2);
+                } else {
+                    document.getElementById('editNodes').value = (data.memberNodes || []).join(',');
+                    document.getElementById('editIValue').value = data.I_value || 0.8;
+                    document.getElementById('editPredicate').value = data.predicate || '';
+                }
+            } else {
+                document.getElementById('editAttrs').value = '{}';
+                document.getElementById('editNodes').value = '';
+                document.getElementById('editIValue').value = 0.8;
+                document.getElementById('editPredicate').value = '';
+            }
+        }
+
+        function saveEdit() {
+            if (!currentGraphData) return;
+            const id = document.getElementById('editId').value.trim();
+            if (!id) { alert('请输入 ID'); return; }
+
+            if (!document.getElementById('edgeFields').style.display || document.getElementById('edgeFields').style.display === 'none') {
+                // Node
+                const attrs = JSON.parse(document.getElementById('editAttrs').value);
+                if (!currentGraphData.nodes) currentGraphData.nodes = [];
+                const idx = currentGraphData.nodes.findIndex(n => n.node_id === id);
+                if (idx >= 0) {
+                    currentGraphData.nodes[idx].attributes = attrs;
+                } else {
+                    currentGraphData.nodes.push({ node_id: id, attributes: attrs });
+                }
+            } else {
+                // Edge
+                const nodes = document.getElementById('editNodes').value.split(',').map(s => s.trim()).filter(Boolean);
+                const I_value = parseFloat(document.getElementById('editIValue').value);
+                const predicate = document.getElementById('editPredicate').value;
+                if (!currentGraphData.edges) currentGraphData.edges = [];
+                const idx = currentGraphData.edges.findIndex(e => e.edge_id === id);
+                const edgeObj = { edge_id: id, nodes: nodes, I_value: I_value, base_weight: 1.0, dir_factor: 1.0, predicate: predicate };
+                if (idx >= 0) {
+                    currentGraphData.edges[idx] = edgeObj;
+                } else {
+                    currentGraphData.edges.push(edgeObj);
+                }
+            }
+
+            renderGraph(currentGraphData);
+            document.getElementById('editorPanel').classList.remove('show');
+        }
+
+        function deleteSelected() {
+            if (!selectedElement || !currentGraphData) return;
+            const id = selectedElement.label;
+            if (selectedElement.type === 'node' || !selectedElement.type) {
+                currentGraphData.nodes = (currentGraphData.nodes || []).filter(n => n.node_id !== id);
+                currentGraphData.edges = (currentGraphData.edges || []).filter(e => !(e.nodes || []).includes(id));
+            } else {
+                currentGraphData.edges = (currentGraphData.edges || []).filter(e => e.edge_id !== id.replace('_he_', ''));
+            }
+            renderGraph(currentGraphData);
+            document.getElementById('editorPanel').classList.remove('show');
+        }
+
+        // ---------- Tooltip ----------
+        function showTooltip(event, html) {
+            const tip = document.getElementById('tooltip');
+            tip.innerHTML = html;
+            tip.style.display = 'block';
+            tip.style.left = (event.pageX + 15) + 'px';
+            tip.style.top = (event.pageY - 10) + 'px';
+        }
+        function hideTooltip() {
+            document.getElementById('tooltip').style.display = 'none';
+        }
+
+        // ---------- Result/Error ----------
         function showResult(report) {
-            document.getElementById('error').classList.remove('show');
-            const resultDiv = document.getElementById('result');
-            const statsDiv = document.getElementById('stats');
-            resultDiv.classList.add('show');
-
-            statsDiv.innerHTML = '';
-
+            document.getElementById('errorBox').classList.remove('show');
+            const box = document.getElementById('resultBox');
+            box.classList.add('show');
+            const sc = document.getElementById('statsContent');
             if (report.original_edges !== undefined) {
-                statsDiv.innerHTML = `
-                    <div class="stat">
-                        <div class="label">原始超边数</div>
-                        <div class="value">${report.original_edges}</div>
-                    </div>
-                    <div class="stat">
-                        <div class="label">压缩后字节数</div>
-                        <div class="value">${report.compressed_bytes}</div>
-                    </div>
-                    <div class="stat">
-                        <div class="label">SCR (锚点维度)</div>
-                        <div class="value">${report.scr_anchor ? report.scr_anchor.toFixed(2) : 'N/A'}x</div>
-                    </div>
-                    <div class="stat">
-                        <div class="label">SCR (信息维度)</div>
-                        <div class="value">${report.scr_info ? report.scr_info.toFixed(2) : 'N/A'}x</div>
-                    </div>
-                    <div class="stat">
-                        <div class="label">比特压缩比</div>
-                        <div class="value">${report.bit_compression_ratio ? report.bit_compression_ratio.toFixed(2) : 'N/A'}x</div>
-                    </div>
+                sc.innerHTML = `
+                    <div class="stat-row"><span class="label">原始超边数</span><span class="value">${report.original_edges}</span></div>
+                    <div class="stat-row"><span class="label">压缩字节数</span><span class="value">${report.compressed_bytes}</span></div>
+                    <div class="stat-row"><span class="label">SCR (锚点)</span><span class="value">${(report.scr_anchor || 0).toFixed(2)}x</span></div>
+                    <div class="stat-row"><span class="label">SCR (信息)</span><span class="value">${(report.scr_info || 0).toFixed(2)}x</span></div>
                 `;
-
-                // Enable download
                 const blob = new Blob([atob(compressedDataB64)], { type: 'application/octet-stream' });
                 const url = URL.createObjectURL(blob);
                 const a = document.getElementById('downloadBtn');
-                a.href = url;
-                a.download = 'compressed.esz';
-                a.style.display = 'inline-block';
+                a.href = url; a.download = 'compressed.esz'; a.style.display = 'inline-block';
                 a.textContent = '下载压缩文件 (.esz)';
-            } else if (report.message) {
-                statsDiv.innerHTML = `<div style="color: #333;">${report.message}</div>`;
+            } else {
+                sc.innerHTML = `<div style="color:#4cdaa6;">${report.message}</div>`;
             }
         }
-
-        function showError(message) {
-            const errorDiv = document.getElementById('error');
-            errorDiv.textContent = message;
-            errorDiv.classList.add('show');
-            document.getElementById('result').classList.remove('show');
+        function showError(msg) {
+            const eb = document.getElementById('errorBox');
+            eb.textContent = msg;
+            eb.classList.add('show');
+            document.getElementById('resultBox').classList.remove('show');
         }
+
+        // Initial render if graph data exists
+        if (currentGraphData) renderGraph(currentGraphData);
     </script>
 </body>
 </html>

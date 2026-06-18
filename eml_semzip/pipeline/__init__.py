@@ -1,4 +1,4 @@
-"""Pipeline subpackage: compression stages, Compressor, Decompressor."""
+"""Pipeline subpackage: compression stages, Compressor, Decompressor, incremental compression."""
 
 from .stages import (
     StageStats,
@@ -10,6 +10,13 @@ from .stages import (
 )
 from .compressor import Compressor
 from .decompressor import Decompressor
+from .incremental import (
+    HypergraphDelta,
+    compute_delta,
+    apply_delta,
+    compress_incremental,
+    decompress_incremental,
+)
 
 __all__ = [
     "StageStats",
@@ -20,4 +27,9 @@ __all__ = [
     "stage5_ans_encode",
     "Compressor",
     "Decompressor",
+    "HypergraphDelta",
+    "compute_delta",
+    "apply_delta",
+    "compress_incremental",
+    "decompress_incremental",
 ]
