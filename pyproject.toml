@@ -1,0 +1,46 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "eml-semzip"
+version = "1.0.0"
+description = "EML-SemZip: Semantic compression for EML hypergraphs based on Mao Rui metric and TOMAS axioms"
+readme = "README.md"
+requires-python = ">=3.13"
+license = {text = "Apache-2.0"}
+authors = [
+    {name = "章锋", email = "zhangfeng@tomas-agi.org"},
+]
+keywords = [
+    "semantic compression",
+    "knowledge graph",
+    "EML hypergraph",
+    "Mao Rui metric",
+    "TOMAS",
+    "AGI",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+
+[project.urls]
+Homepage = "https://github.com/lisoleg/eml-semzip"
+Repository = "https://github.com/lisoleg/eml-semzip.git"
+Documentation = "https://github.com/lisoleg/eml-semzip/blob/main/docs/paper.md"
+
+[project.scripts]
+eml-semzip = "eml_semzip.cli.main:main"
+
+[tool.setuptools.packages.find]
+include = ["eml_semzip*", "tests*"]
+
+[tool.setuptools.package-data]
+"eml_semzip.web.templates" = ["*.html"]
+"tests.fixtures" = ["*.json"]

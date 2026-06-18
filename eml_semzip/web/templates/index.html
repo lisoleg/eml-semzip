@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EML-SemZip 语义压缩工具</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        .header h1 { font-size: 28px; margin-bottom: 8px; }
+        .header p { opacity: 0.9; font-size: 14px; }
+        .content { padding: 30px; }
+        .section { margin-bottom: 30px; }
+        .section h2 {
+            font-size: 18px;
+            color: #333;
+            margin-bottom: 15px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #667eea;
+        }
+        .upload-area {
+            border: 3px dashed #ccc;
+            border-radius: 12px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: #fafafa;
+        }
+        .upload-area:hover, .upload-area.dragover {
+            border-color: #667eea;
+            background: #f0f4ff;
+        }
+        .upload-area input { display: none; }
+        .upload-area .icon { font-size: 48px; margin-bottom: 10px; }
+        .upload-area p { color: #666; }
+        .params {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .param label {
+            display: block;
+            font-size: 13px;
+            color: #666;
+            margin-bottom: 5px;
+        }
+        .param input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+        .buttons { display: flex; gap: 10px; margin-bottom: 20px; }
+        button {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .btn-compress {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .btn-compress:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(102,126,234,0.4); }
+        .btn-decompress {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+        }
+        .btn-decompress:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(245,87,108,0.4); }
+        .result {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            display: none;
+        }
+        .result.show { display: block; }
+        .result h3 { font-size: 16px; color: #333; margin-bottom: 15px; }
+        .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; }
+        .stat {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+        .stat .label { font-size: 12px; color: #999; margin-bottom: 5px; }
+        .stat .value { font-size: 24px; font-weight: bold; color: #333; }
+        .download-btn {
+            display: inline-block;
+            margin-top: 15px;
+            padding: 10px 20px;
+            background: #667eea;
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+        .error {
+            background: #fee;
+            color: #c33;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+            display: none;
+        }
+        .error.show { display: block; }
+        .checkbox { display: flex; align-items: center; gap: 8px; margin-bottom: 15px; }
+        .checkbox input { width: 18px; height: 18px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>EML-SemZip 语义压缩工具</h1>
+            <p>基于毛睿广义度量与 TOMAS 公理的极致语义压缩</p>
+        </div>
+        <div class="content">
+            <!-- Upload Section -->
+            <div class="section">
+                <h2>1. 上传超图文件</h2>
+                <div class="upload-area" id="uploadArea">
+                    <div class="icon">📁</div>
+                    <p>点击或拖拽上传 JSON 文件</p>
+                    <input type="file" id="fileInput" accept=".json,.pickle">
+                </div>
+                <div id="fileName" style="margin-top: 10px; color: #667eea; font-size: 14px;"></div>
+            </div>
+
+            <!-- Params Section -->
+            <div class="section">
+                <h2>2. 压缩参数</h2>
+                <div class="params">
+                    <div class="param">
+                        <label>θ_dead (Dead-Zero 阈值)</label>
+                        <input type="number" id="thetaDead" value="0.45" min="0" max="1" step="0.01">
+                    </div>
+                    <div class="param">
+                        <label>keep_ratio (语义核保留比例)</label>
+                        <input type="number" id="keepRatio" value="0.15" min="0" max="1" step="0.01">
+                    </div>
+                </div>
+                <div class="checkbox">
+                    <input type="checkbox" id="useBuiltinKb" checked>
+                    <label for="useBuiltinKb">使用内置 KB (EML-Lite)</label>
+                </div>
+            </div>
+
+            <!-- Actions Section -->
+            <div class="section">
+                <h2>3. 执行操作</h2>
+                <div class="buttons">
+                    <button class="btn-compress" id="compressBtn">压缩</button>
+                    <button class="btn-decompress" id="decompressBtn">解压</button>
+                </div>
+            </div>
+
+            <!-- Result Section -->
+            <div class="section">
+                <h2>4. 结果</h2>
+                <div class="result" id="result">
+                    <h3>压缩报告</h3>
+                    <div class="stats" id="stats"></div>
+                    <a href="#" class="download-btn" id="downloadBtn" style="display:none;">下载文件</a>
+                </div>
+                <div class="error" id="error"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentGraphData = null;
+        let compressedDataB64 = null;
+
+        // Upload area handlers
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+
+        uploadArea.addEventListener('click', () => fileInput.click());
+
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            if (e.dataTransfer.files.length > 0) {
+                handleFile(e.dataTransfer.files[0]);
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFile(e.target.files[0]);
+            }
+        });
+
+        function handleFile(file) {
+            document.getElementById('fileName').textContent = `已选择: ${file.name}`;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    currentGraphData = JSON.parse(e.target.result);
+                    console.log('Graph loaded:', currentGraphData);
+                } catch (err) {
+                    showError('文件解析失败: ' + err.message);
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        // Compress button
+        document.getElementById('compressBtn').addEventListener('click', async () => {
+            if (!currentGraphData) {
+                showError('请先上传超图文件');
+                return;
+            }
+
+            const thetaDead = parseFloat(document.getElementById('thetaDead').value);
+            const keepRatio = parseFloat(document.getElementById('keepRatio').value);
+            const useBuiltinKb = document.getElementById('useBuiltinKb').checked;
+
+            try {
+                const response = await fetch('/api/compress', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        graph: currentGraphData,
+                        theta_dead: thetaDead,
+                        keep_ratio: keepRatio,
+                        use_builtin_kb: useBuiltinKb,
+                    }),
+                });
+
+                const result = await response.json();
+
+                if (result.status === 'ok') {
+                    compressedDataB64 = result.compressed_b64;
+                    showResult(result.report);
+                } else {
+                    showError(result.error || '压缩失败');
+                }
+            } catch (err) {
+                showError('请求失败: ' + err.message);
+            }
+        });
+
+        // Decompress button
+        document.getElementById('decompressBtn').addEventListener('click', async () => {
+            if (!compressedDataB64) {
+                showError('请先压缩文件，或上传 .esz 文件');
+                return;
+            }
+
+            const useBuiltinKb = document.getElementById('useBuiltinKb').checked;
+
+            try {
+                const response = await fetch('/api/decompress', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        compressed_b64: compressedDataB64,
+                        use_builtin_kb: useBuiltinKb,
+                    }),
+                });
+
+                const result = await response.json();
+
+                if (result.status === 'ok') {
+                    currentGraphData = result.graph;
+                    showResult({
+                        message: `解压成功: ${result.nodes} 节点, ${result.edges} 超边`,
+                    });
+                    // Download decompressed graph
+                    const blob = new Blob([JSON.stringify(result.graph, null, 2)], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.getElementById('downloadBtn');
+                    a.href = url;
+                    a.download = 'decompressed.json';
+                    a.style.display = 'inline-block';
+                    a.textContent = '下载解压后的超图';
+                } else {
+                    showError(result.error || '解压失败');
+                }
+            } catch (err) {
+                showError('请求失败: ' + err.message);
+            }
+        });
+
+        function showResult(report) {
+            document.getElementById('error').classList.remove('show');
+            const resultDiv = document.getElementById('result');
+            const statsDiv = document.getElementById('stats');
+            resultDiv.classList.add('show');
+
+            statsDiv.innerHTML = '';
+
+            if (report.original_edges !== undefined) {
+                statsDiv.innerHTML = `
+                    <div class="stat">
+                        <div class="label">原始超边数</div>
+                        <div class="value">${report.original_edges}</div>
+                    </div>
+                    <div class="stat">
+                        <div class="label">压缩后字节数</div>
+                        <div class="value">${report.compressed_bytes}</div>
+                    </div>
+                    <div class="stat">
+                        <div class="label">SCR (锚点维度)</div>
+                        <div class="value">${report.scr_anchor ? report.scr_anchor.toFixed(2) : 'N/A'}x</div>
+                    </div>
+                    <div class="stat">
+                        <div class="label">SCR (信息维度)</div>
+                        <div class="value">${report.scr_info ? report.scr_info.toFixed(2) : 'N/A'}x</div>
+                    </div>
+                    <div class="stat">
+                        <div class="label">比特压缩比</div>
+                        <div class="value">${report.bit_compression_ratio ? report.bit_compression_ratio.toFixed(2) : 'N/A'}x</div>
+                    </div>
+                `;
+
+                // Enable download
+                const blob = new Blob([atob(compressedDataB64)], { type: 'application/octet-stream' });
+                const url = URL.createObjectURL(blob);
+                const a = document.getElementById('downloadBtn');
+                a.href = url;
+                a.download = 'compressed.esz';
+                a.style.display = 'inline-block';
+                a.textContent = '下载压缩文件 (.esz)';
+            } else if (report.message) {
+                statsDiv.innerHTML = `<div style="color: #333;">${report.message}</div>`;
+            }
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('error');
+            errorDiv.textContent = message;
+            errorDiv.classList.add('show');
+            document.getElementById('result').classList.remove('show');
+        }
+    </script>
+</body>
+</html>

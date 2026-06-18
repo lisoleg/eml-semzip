@@ -1,0 +1,193 @@
+%% EML-SemZip 类图 — 数据结构与接口
+%% 架构师：高见远（Bob） | v1.0
+
+classDiagram
+    direction TB
+
+    %% ─── 数据模型层 ───
+    class Node {
+        +str node_id
+        +dict attributes
+        __init__(node_id: str, attributes: dict~str, Any~) None
+        +to_dict() dict
+        +from_dict(d: dict) Node
+    }
+
+    class HyperEdge {
+        +str edge_id
+        +set~str~ nodes
+        +float I_value
+        +float base_weight
+        +float dir_factor
+        +str predicate
+        +float d_sem
+        __init__(edge_id, nodes, I_value, predicate, base_weight, dir_factor) None
+        +compute_d_sem() float
+        +canonical_key() tuple
+        +to_dict() dict
+        +from_dict(d: dict) HyperEdge
+    }
+
+    class EMLHypergraph {
+        +dict~str, Node~ V
+        +list~HyperEdge~ E
+        __init__() None
+        +add_node(node: Node) None
+        +add_edge(edge: HyperEdge) None
+        +remove_edge(edge_id: str) bool
+        +get_edges_by_node(node_id: str) list~HyperEdge~
+        +get_nodes() set~str~
+        +to_json(path: str) None
+        +from_json(path: str) EMLHypergraph
+        +to_pickle(path: str) None
+        +from_pickle(path: str) EMLHypergraph
+        +edge_count() int
+        +node_count() int
+    }
+
+    %% ─── 知识库层 ───
+    class EMLLiteKB {
+        +list~HyperEdge~ patterns
+        +dict~tuple, list~index~
+        +str sig
+        +dict~str, list~ absorbed_records
+        __init__() None
+        +find_isomorphic(edge: HyperEdge) HyperEdge
+        +absorb(edge: HyperEdge) AbsorbRecord
+        +compute_sig() str
+        +verify_sig(expected: str) bool
+        +save(path: str) None
+        +load(path: str) EMLLiteKB
+        +add_pattern(edge: HyperEdge) None
+        +rebuild_edges(records: list~AbsorbRecord~) list~HyperEdge~
+    }
+
+    class AbsorbRecord {
+        +str pattern_id
+        +dict~str, str~ node_mapping
+        +float I_value
+        +float base_weight
+        +float dir_factor
+        +str predicate
+        __init__(...) None
+        +to_dict() dict
+        +from_dict(d: dict) AbsorbRecord
+    }
+
+    %% ─── 编解码层 ───
+    class ANSCoder {
+        __init__() None
+        +encode(data: bytes) bytes
+        +decode(data: bytes, original_length: int) bytes
+        -_build_freq_table(data: bytes) list~int~
+        -_normalize_freqs(freqs: list~int~) tuple
+    }
+
+    class Serializer {
+        __init__() None
+        +serialize(V_star: set~str~, E_star: list~HyperEdge~, theta_dead: float, kb_sig: str, pruned_summary: list, absorb_records: list) bytes
+        +deserialize(data: bytes) SemPktPayload
+    }
+
+    class SemPkt {
+        +bytes magic
+        +int version
+        +dict metadata
+        +bytes ans_data
+        +int original_length
+        __init__(metadata, ans_data, original_length) None
+        +to_bytes() bytes
+        +from_bytes(data: bytes) SemPkt
+        +is_valid() bool
+    }
+
+    class SemPktPayload {
+        +set~str~ V_star
+        +list~HyperEdge~ E_star
+        +float theta_dead
+        +str kb_sig
+        +list pruned_summary
+        +list~AbsorbRecord~ absorb_records
+    }
+
+    %% ─── 管线层 ───
+    class StageStats {
+        +str stage_name
+        +int edges_before
+        +int edges_after
+        +dict details
+        __init__(stage_name, edges_before, edges_after, details) None
+        +to_dict() dict
+    }
+
+    class Compressor {
+        +EMLLiteKB kb
+        +float theta_dead
+        +float keep_ratio
+        +list~StageStats~ stats_history
+        __init__(kb, theta_dead, keep_ratio) None
+        +compress(graph: EMLHypergraph) bytes
+        -_stage1_dead_zero_prune(E: list) tuple~list, list, StageStats~
+        -_stage2_isomorphism_merge(E: list, kb: EMLLiteKB) tuple~list, list, StageStats~
+        -_stage3_mao_rui_weighting(E: list) StageStats
+        -_stage4_ksnap_selection(E: list, keep_ratio: float) tuple~set, list, StageStats~
+        -_stage5_ans_encode(V_star, E_star, theta_dead, kb_sig, pruned, absorbed) bytes
+        +get_report() CompressionReport
+    }
+
+    class Decompressor {
+        +EMLLiteKB kb
+        __init__(kb) None
+        +decompress(sempkt_bytes: bytes) EMLHypergraph
+        -_ans_decode(data: bytes) SemPktPayload
+        -_kappa_anchor_expand(V_star, E_star) set~str~
+        -_eml_lite_rebuild(payload: SemPktPayload, kb: EMLLiteKB) list~HyperEdge~
+        -_mao_rui_recompute(E: list) None
+        -_restore_pruned(pruned_summary: list) list~HyperEdge~
+    }
+
+    %% ─── IO 层 ───
+    class CompressionReport {
+        +int original_edges
+        +int anchor_edges
+        +int original_nodes
+        +int anchor_nodes
+        +float theta_dead
+        +float keep_ratio
+        +list~StageStats~ stages
+        +str kb_sig
+        +float scr_anchor
+        +float scr_info
+        +float bit_ratio
+        +dict d_sem_audit
+        __init__(...) None
+        +compute_ratios(original_size: int, pkt_size: int) None
+        +to_json(path: str) None
+        +to_text(path: str) None
+        +to_dict() dict
+    }
+
+    %% ─── 关系 ───
+    EMLHypergraph "1" *-- "many" Node : contains V
+    EMLHypergraph "1" *-- "many" HyperEdge : contains E
+    HyperEdge --> Node : references by node_id
+
+    EMLLiteKB "1" *-- "many" HyperEdge : pattern templates
+    EMLLiteKB "1" *-- "many" AbsorbRecord : absorbed records
+
+    Compressor --> EMLHypergraph : compresses
+    Compressor --> EMLLiteKB : uses for merge
+    Compressor --> ANSCoder : delegates encoding
+    Compressor --> Serializer : delegates serialization
+    Compressor --> SemPkt : produces
+    Compressor "1" *-- "many" StageStats : records
+
+    Decompressor --> SemPkt : consumes
+    Decompressor --> EMLLiteKB : uses for rebuild
+    Decompressor --> ANSCoder : delegates decoding
+    Decompressor --> Serializer : delegates deserialization
+    Decompressor --> EMLHypergraph : produces
+
+    Serializer --> SemPktPayload : creates
+    SemPkt --> SemPktPayload : wraps payload
+    CompressionReport "1" *-- "many" StageStats : aggregates

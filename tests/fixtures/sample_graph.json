@@ -1,0 +1,13 @@
+{
+  "nodes": [
+    {"node_id": "n1", "attributes": {"name": "Alice", "type": "person"}},
+    {"node_id": "n2", "attributes": {"name": "Bob", "type": "person"}},
+    {"node_id": "n3", "attributes": {"name": "ProjectX", "type": "project"}}
+  ],
+  "edges": [
+    {"edge_id": "e1", "nodes": ["n1", "n2"], "predicate": "knows", "I_value": 0.9, "base_weight": 1.0, "dir_factor": 1.0},
+    {"edge_id": "e2", "nodes": ["n1", "n3"], "predicate": "works_on", "I_value": 0.8, "base_weight": 1.0, "dir_factor": 1.0},
+    {"edge_id": "e3", "nodes": ["n2", "n3"], "predicate": "works_on", "I_value": 0.3, "base_weight": 1.0, "dir_factor": 1.0},
+    {"edge_id": "e4", "nodes": ["n1", "n2", "n3"], "predicate": "collaborates", "I_value": 0.95, "base_weight": 1.2, "dir_factor": 1.0}
+  ]
+}

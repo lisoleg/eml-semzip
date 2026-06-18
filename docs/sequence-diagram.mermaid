@@ -1,0 +1,167 @@
+%% EML-SemZip 时序图 — 压缩流程 + 解压流程
+%% 架构师：高见远（Bob） | v1.0
+
+%% ═══════════════════════════════════════════
+%% 压缩流程
+%% ═══════════════════════════════════════════
+
+sequenceDiagram
+    autonumber
+    actor User
+    participant CLI as cli/main.py
+    participant GIO as io/graph_io.py
+    participant KB as kb/eml_lite_kb.py
+    participant CMP as pipeline/compressor.py
+    participant STG as pipeline/stages.py
+    participant UTIL as utils/(cycle+iso)
+    participant SER as coding/serializer.py
+    participant ANS as coding/ans_coder.py
+    participant PKT as coding/sempkt.py
+    participant RPT as io/report.py
+
+    User->>CLI: eml-semzip compress -i graph.json -o out.sempkt --theta-dead 0.45 --keep-ratio 0.15 --kb eml_lite.json --report report.json
+    CLI->>CLI: argparse 解析参数，校验路径
+    CLI->>GIO: load_graph("graph.json")
+    GIO-->>CLI: EMLHypergraph (V=870, E=1024)
+
+    CLI->>KB: EMLLiteKB.load("eml_lite.json")
+    KB-->>CLI: EMLLiteKB (sig=0x7f3a...)
+
+    CLI->>CMP: Compressor(kb, theta_dead=0.45, keep_ratio=0.15)
+    CLI->>CMP: compress(graph)
+
+    Note over CMP: ── Stage 1/5: Dead-Zero 剪枝 ──
+    CMP->>STG: stage1_dead_zero_prune(E, theta_dead=0.45)
+    STG->>STG: 过滤 I_value < 0.45 的超边
+    STG-->>CMP: (E_pruned=612, pruned_summary=412条, StageStats)
+
+    Note over CMP: ── Stage 2/5: EML-Lite 同构归并 ──
+    CMP->>STG: stage2_isomorphism_merge(E_pruned, kb)
+    loop 每条超边
+        STG->>KB: find_isomorphic(edge)
+        alt 匹配到 KB 模板
+            KB->>KB: absorb(edge) → AbsorbRecord
+            KB-->>STG: pattern_match
+        else 无匹配
+            STG->>STG: 保留到 E_merged
+        end
+    end
+    STG-->>CMP: (E_merged=487, absorb_records=125条, StageStats)
+
+    Note over CMP: ── Stage 3/5: 毛睿度量加权 ──
+    CMP->>STG: stage3_mao_rui_weighting(E_merged)
+    loop 每条超边
+        STG->>STG: e.d_sem = (1.0/(I+1e-9)) * base_weight * dir_factor
+    end
+    STG-->>CMP: StageStats (d_sem 已计算)
+
+    Note over CMP: ── Stage 4/5: κ-Snap 语义核选取 ──
+    CMP->>STG: stage4_ksnap_selection(E_merged, keep_ratio=0.15)
+    STG->>STG: 按 I_value 降序排序
+    STG->>UTIL: find_closed_cycles(E_sorted)
+    UTIL->>UTIL: 构建线图 → DFS 回溯搜索环(≥3)
+    UTIL-->>STG: closed_cycles (18条)
+    STG->>STG: n_keep = max(int(487*0.15), 18) = 73
+    STG->>STG: E_star = Top73 + 闭环超边
+    STG->>STG: V_star = union(e.nodes for e in E_star)
+    STG-->>CMP: (V_star=42, E_star=73, StageStats)
+
+    Note over CMP: ── Stage 5/5: ANS 熵编码 ──
+    CMP->>SER: serialize(V_star, E_star, theta_dead, kb.sig, pruned_summary, absorb_records)
+    SER->>SER: 构建结构化字节流
+    SER-->>CMP: raw_bytes
+    CMP->>ANS: encode(raw_bytes)
+    ANS->>ANS: 构建频率表 → rANS 状态机编码
+    ANS-->>CMP: ans_data + original_length
+    CMP->>PKT: SemPkt(metadata, ans_data, original_length)
+    PKT->>PKT: to_bytes() — 魔数+版本+元数据+ANS数据
+    PKT-->>CMP: sempkt_bytes
+    CMP-->>CLI: sempkt_bytes + stats_history
+
+    CLI->>CLI: 写入 out.sempkt
+    CLI->>RPT: CompressionReport(stats, sizes)
+    RPT->>RPT: compute_ratios(original_size, pkt_size)
+    alt --report 指定 .json
+        CLI->>RPT: to_json("report.json")
+    else --report 指定 .txt
+        CLI->>RPT: to_text("report.txt")
+    end
+    RPT-->>CLI: 报告已生成
+
+    CLI->>User: 输出压缩结果摘要（超边数、锚点数、SCR、比特压缩比）
+
+%% ═══════════════════════════════════════════
+%% 解压流程
+%% ═══════════════════════════════════════════
+
+sequenceDiagram
+    autonumber
+    actor User
+    participant CLI as cli/main.py
+    participant KB as kb/eml_lite_kb.py
+    participant DCM as pipeline/decompressor.py
+    participant PKT as coding/sempkt.py
+    participant ANS as coding/ans_coder.py
+    participant SER as coding/serializer.py
+    participant GIO as io/graph_io.py
+
+    User->>CLI: eml-semzip decompress -i out.sempkt -o restored.json --kb eml_lite.json
+    CLI->>CLI: argparse 解析参数，校验路径
+    CLI->>CLI: 读取 out.sempkt 字节
+
+    CLI->>KB: EMLLiteKB.load("eml_lite.json")
+    KB-->>CLI: EMLLiteKB (sig=0x7f3a...)
+
+    CLI->>DCM: Decompressor(kb)
+    CLI->>DCM: decompress(sempkt_bytes)
+
+    Note over DCM: ── Step 1: SemPkt 解析 + ANS 解码 ──
+    DCM->>PKT: SemPkt.from_bytes(data)
+    PKT-->>DCM: SemPkt (metadata, ans_data, original_length)
+    DCM->>ANS: decode(ans_data, original_length)
+    ANS->>ANS: rANS 逆向状态机解码
+    ANS-->>DCM: raw_bytes
+    DCM->>SER: deserialize(raw_bytes)
+    SER-->>DCM: SemPktPayload (V_star, E_star, theta_dead, kb_sig, pruned, absorbed)
+
+    Note over DCM: ── Step 2: KB 签名校验 ──
+    DCM->>KB: verify_sig(payload.kb_sig)
+    alt 签名不匹配
+        KB-->>DCM: False
+        DCM-->>CLI: raise KBSignatureError (exit code 3)
+    else 签名匹配
+        KB-->>DCM: True
+    end
+
+    Note over DCM: ── Step 3: κ-锚点展开 ──
+    DCM->>DCM: _kappa_anchor_expand(V_star, E_star)
+    DCM->>DCM: 从 E_star 超边恢复锚节点集 → 完整节点集
+    DCM-->>DCM: V_restored (870 nodes)
+
+    Note over DCM: ── Step 4: EML-Lite KB 重建 ──
+    DCM->>DCM: _eml_lite_rebuild(payload, kb)
+    DCM->>KB: rebuild_edges(payload.absorb_records)
+    loop 每条 AbsorbRecord
+        KB->>KB: 按 pattern_id 取模板 → 按 node_mapping 实例化 → 设 I 值
+        KB-->>DCM: HyperEdge (重建)
+    end
+    DCM-->>DCM: E_absorbed (125 条重建超边)
+
+    Note over DCM: ── Step 5: 剪枝超边恢复 ──
+    DCM->>DCM: _restore_pruned(payload.pruned_summary)
+    DCM->>DCM: 从摘要重建低 I 值超边
+    DCM-->>DCM: E_pruned (412 条恢复超边)
+
+    Note over DCM: ── Step 6: 合并 + 毛睿度量重算 ──
+    DCM->>DCM: E_all = E_star + E_absorbed + E_pruned (1024 条)
+    DCM->>DCM: _mao_rui_recompute(E_all)
+    loop 每条超边
+        DCM->>DCM: e.d_sem = (1.0/(I+1e-9)) * base_weight * dir_factor
+    end
+    DCM-->>CLI: EMLHypergraph (V=870, E=1024)
+
+    CLI->>GIO: export_graph(graph, "restored.json")
+    GIO->>GIO: JSON 序列化
+    GIO-->>CLI: 文件已写入
+
+    CLI->>User: 输出解压结果（还原超边数=1024 ✓, 还原节点数=870 ✓）
