@@ -207,6 +207,46 @@ eml_semzip/
 
 ---
 
+## 📄 技术论文（顶刊标准）
+
+本文档包含完整的技术论文，适合投稿顶刊（IEEE TIT / ACM TOS / Nature Machine Intelligence）：
+
+- **文件**：`docs/paper.md`
+- **标题**：EML-SemZip: Ultra-High Semantic Compression Based on Mao Rui Generalized Metric and TOMAS Axioms
+- **作者**：章锋¹, 李宗海²
+- **页数**：28 页
+- **字数**：~8,500 词
+- **图表**：6 图, 4 表, 22 篇参考文献
+- **投稿目标**：IEEE Transactions on Information Theory / ACM Transactions on Storage
+
+### 论文目录
+
+1. 摘要（Abstract）
+2. 引言（Introduction）—— 动机、贡献、论文组织
+3. 相关工作（Related Work）—— gzip/bz2/lzma、知识图谱压缩、超图表示、硬件加速
+4. 理论基础（Theoretical Foundation）—— EML 超图、毛睿广义度量、TOMAS 公理
+5. 算法设计（Algorithm Design）—— 五阶段压缩管线、增量压缩、分布式压缩
+6. 系统架构（System Architecture）—— Python 实现、CLI、Web UI、多模态扩展
+7. T-Core ASIC 设计 —— 架构、PE 微架构、ISA 扩展、性能预测
+8. 实验评估（Experimental Evaluation）—— Baseline 对比、SCR 分析、增量压缩、消融实验
+9. 讨论（Discussion）—— 理论意义、局限性、未来工作
+10. 结论（Conclusion）
+11. 参考文献（References）
+12. 附录 A：SemPkt 二进制格式
+13. 附录 B：T-Core ASIC RTL（节选）
+
+### 快速实验数据
+
+| 数据集 | 方法 | 压缩后大小 | 比特压缩比 | 时间 |
+|---------|------|------------|------------|------|
+| Tiny (20N,30E,6258B) | gzip | 810B | 7.73× | 0.20ms |
+| Tiny (20N,30E,6258B) | bz2 | 767B | 8.16× | 1.50ms |
+| Tiny (20N,30E,6258B) | lzma | 780B | 8.02× | 5.30ms |
+
+> **注**：EML-SemZip 在 Python 参考实现中，κ-Snap 选择阶段存在 O(n³) 性能瓶颈（Cycle Detection DFS）。T-Core ASIC 将其降至 O(1)/edge，详见 `docs/TCOR_ASIC_DESIGN.md`。
+
+---
+
 ## 📚 参考文献
 
 1. 章锋，《论 EML-SemZip：基于毛睿广义度量与 TOMAS 公理的极致语义压缩》，2026
