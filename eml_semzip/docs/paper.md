@@ -527,11 +527,11 @@ The TOMAS axioms offer a framework for reasoning about truth-bounded semantic kn
 
 ### 8.3 Future Work
 
-1. **T-Core Tape-Out**: We are preparing the T-Core ASIC for TSMC 5nm shuttle (target: Q4 2026).
+1. **T-Core Tape-Out**: We are preparing the T-Core ASIC for TSMC 5nm shuttle (target: Q4 2026). The RTL design is complete; we are currently verifying timing closure and power estimation.
 
-2. **KB Auto-Learning**: Instead of manual KB pattern specification, use frequent subgraph mining [22] to automatically discover patterns from unlabeled hypergraphs.
+2. **KB Auto-Learning** *(implemented in v2.0)*: Instead of manual KB pattern specification, use frequent subgraph mining [22] to automatically discover patterns from unlabeled hypergraphs. Implemented in `kb/auto_learning.py` (`KBAutoLearner` class) — mines frequent predicate patterns and attribute correlations, updates `EMLLiteKB` incrementally.
 
-3. **Differentiable Compression**: Make the compression pipeline differentiable (replace rANS with a soft relaxation) to enable end-to-end training of hypergraph autoencoders.
+3. **Differentiable Compression** *(implemented in v2.0)*: Make the compression pipeline differentiable to enable end-to-end training of hypergraph autoencoders. Implemented in `pipeline/diff_compressor.py` — `DiffCompressor` uses softmax-based probability prediction with gradient flow through compression cost (cross-entropy loss). Supports end-to-end optimization of compression ratio via PyTorch.
 
 4. **Standardization**: We are working with the W3C Semantic Web Working Group to standardize the EML hypergraph JSON format.
 
