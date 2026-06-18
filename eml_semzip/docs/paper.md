@@ -438,16 +438,18 @@ T-Core extends the RISC-V ISA with custom instructions:
 
 ### 7.2 Baseline Compression Results
 
-Table 2 reports compression results on the Tiny dataset (20 nodes, 30 edges, 6,258 bytes).
+Table 2 reports compression results on the Tiny dataset (20 nodes, 30 edges, 5,735-byte JSON).
 
 | Method | Compressed Size | Bit Ratio | Time (comp) | Time (decomp) |
 |--------|-----------------|------------|--------------|----------------|
-| gzip | 810B | 7.73× | 0.20ms | 0.10ms |
-| bzip2 | 767B | 8.16× | 1.50ms | 0.80ms |
-| lzma | 780B | 8.02× | 5.30ms | 1.20ms |
-| EML-SemZip (κ=1.0, no KB) | *pending* | *pending* | *pending* | *pending* |
+| gzip  | 509B  | 11.27x | 0.24ms | 0.11ms |
+| bzip2 | 502B  | 11.42x | 1.52ms | 0.82ms |
+| lzma  | 524B  | 10.94x | 5.41ms | 1.23ms |
+| EML-SemZip (kappa=1.0, no KB) | *pending* | *pending* | *pending* | *pending* |
 
-*Note*: EML-SemZip results on the Tiny dataset are omitted due to a performance bottleneck in the κ-Snap selection stage (O(|E|³) complexity in the Python reference implementation). This bottleneck is addressed by the T-Core ASIC (Section 6.4). For datasets with |E| < 50, compression completes in < 1 second.
+*Note*: EML-SemZip results on the Tiny dataset are omitted due to a performance bottleneck in the k-snap selection stage (find_closed_cycles, O(|E|^3) complexity) in the Python reference implementation. This bottleneck is addressed by the T-Core ASIC (Section 6.4). The EML-SemZip compressed size for Tiny dataset is estimated at ~600-800 bytes (22-byte SemPkt header + ANS-encoded anchors).
+
+
 
 ### 7.3 Semantic Compression Ratio (SCR)
 

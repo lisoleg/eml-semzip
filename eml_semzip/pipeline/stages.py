@@ -189,8 +189,12 @@ def stage4_ksnap_selection(
     for edge in E_star:
         V_star.update(edge.nodes)
 
-    # Ensure closed cycles: add edges that form cycles with >= 3 nodes
-    cycles = find_closed_cycles(edges_merged, min_length=3)
+    # Only run cycle detection when we are actually pruning edges.
+    # If keep_ratio >= 1.0, all edges are already selected and
+    # cycle completion is unnecessary (O(n³) bottleneck).
+    cycles = []
+    if keep_ratio < 1.0:
+        cycles = find_closed_cycles(edges_merged, min_length=3)
     for cycle in cycles:
         cycle_nodes = set()
         for edge_id in cycle:
