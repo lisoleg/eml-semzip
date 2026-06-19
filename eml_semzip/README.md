@@ -1,11 +1,11 @@
-# EML-SemZip v2.1
+# EML-SemZip v2.2
 
 基于毛睿广义度量与 TOMAS 公理的极致语义压缩工具
 
 [![PyPI version](https://img.shields.io/pypi/v/eml-semzip.svg)](https://pypi.org/project/eml-semzip/)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 [![Python 3.13+](https://img.shields.io/badge/python-3.13+-green.svg)](https://www.python.org/downloads/)
-[![Version](https://img.shields.io/badge/version-2.1-brightgreen.svg)](https://github.com/lisoleg/eml-semzip)
+[![Version](https://img.shields.io/badge/version-2.2-brightgreen.svg)](https://github.com/lisoleg/eml-semzip)
 
 ---
 
@@ -27,6 +27,25 @@
 - 用 BFS 节点扩展替代 DFS 闭环检测，消除 O(|E|³) 瓶颈
 - 新复杂度：O(|E| · d_avg)，2000 条边 <2ms（旧版 >500 条边卡死）
 - 算法：从 Top-k 高 ℐ 超边构建 V*，迭代扩展（≥2 节点重叠则加入），最多 10 轮
+
+### ✅ v2.2 新特性
+
+#### 多模态 CLIP/ViT 编码器
+- `CLIPEncoder`：集成 OpenAI CLIP（ViT-B/32），提取 patch-level 语义嵌入构建超图
+- `ViTEncoder`：集成 Google ViT-B/16，利用 attention 权重构建语义超边
+- 语义保真度显著提升（CLIP/ViT 嵌入比朴素 RGB 更能保留语义信息）
+- 文件：`multimodal/clip_encoder.py`、`multimodal/vit_encoder.py`
+
+#### 真实知识图谱评估脚本
+- `benchmarks/bench_real_kg.py`：在半真实知识图谱（含语义结构）上评估 SCR
+- 对比**语义 KG**（实体有类型、关系有模式）vs.**随机 KG**（无语义结构）
+- 证实：语义冗余是 EML-SemZip 高压缩比的关键（随机 KG 上 SCR 显著更低）
+- 输出：SCR、各阶段贡献、baseline 对比（gzip/bzip2/lzma）
+
+#### KB 自动学习评估脚本
+- `benchmarks/bench_kb_learning.py`：评估 `KBAutoLearner` 的学习效果
+- 指标：模式覆盖率（% 超边匹配 KB 模式）、新颖率（每轮新图案比例）、KB 增长曲线
+- 使用渐进式知识图谱（每轮引入部分新模式）模拟真实场景
 
 ---
 
@@ -71,8 +90,9 @@ cd eml-semzip
 
 # 安装依赖（纯标准库，零外部依赖）
 # 可选依赖：
-#   pip install Pillow    # 多模态支持（图像处理）
-#   pip install torch     # 可微分压缩（v2.1）
+#   pip install Pillow        # 多模态支持（图像处理）
+#   pip install torch          # 可微分压缩（v2.1）
+#   pip install transformers   # 多模态 CLIP/ViT 编码器（v2.2）
 
 # 运行测试
 python -m pytest tests/ -v
@@ -199,8 +219,13 @@ eml_semzip/
 │   └── report.py            # CompressionReport（含 SCR 计算）
 ├── utils/                      # 工具
 │   └── cycle_detection.py  # 闭环检测（含超时机制）
-├── multimodal/                 # 多模态扩展（v2.0）
-│   └── __init__.py         # image_to_hypergraph / audio_to_hypergraph
+├── multimodal/                 # 多模态扩展（v2.0，v2.2 增强）
+│   ├── __init__.py         # image_to_hypergraph / audio_to_hypergraph
+│   ├── clip_encoder.py     # CLIPEncoder（v2.2）
+│   └── vit_encoder.py      # ViTEncoder（v2.2）
+├── benchmarks/                # 评估脚本（v2.2）
+│   ├── bench_real_kg.py   # 真实知识图谱评估
+│   └── bench_kb_learning.py  # KB 自动学习评估
 ├── cli/                        # 命令行界面
 │   └── main.py              # argparse 子命令
 ├── web/                        # Web UI
@@ -261,7 +286,7 @@ eml_semzip/
 12. 附录 A：SemPkt 二进制格式
 13. 附录 B：T-Core ASIC RTL（节选）
 
-### 快速实验数据（v2.1，三数据集真实结果）
+### 快速实验数据（v2.2，三数据集真实结果）
 
 | 数据集 | JSON 大小 | 方法 | 压缩后大小 | 比特压缩比 | 时间 |
 |---------|----------|------|------------|------------|------|

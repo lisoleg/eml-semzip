@@ -4,9 +4,14 @@ Converts images and audio to EML hypergraphs for semantic compression.
 
 - image_to_hypergraph(): extracts patch features from images -> hypergraph
 - audio_to_hypergraph(): extracts spectrogram features from audio -> hypergraph
+- clip_image_to_hypergraph(): CLIP-based semantic feature extraction
+- vit_image_to_hypergraph(): ViT-based attention-aware feature extraction
 """
 
 from __future__ import annotations
+
+from .clip_encoder import CLIPEncoder, clip_image_to_hypergraph, benchmark_clip_fidelity
+from .vit_encoder import ViTEncoder, vit_image_to_hypergraph, benchmark_vit_fidelity
 
 import hashlib
 import json

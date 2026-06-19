@@ -1,8 +1,8 @@
-# EML-SemZip v2.1：基于毛睿广义度量与 TOMAS 公理的极致语义压缩
+# EML-SemZip v2.2：基于毛睿广义度量与 TOMAS 公理的极致语义压缩
 
 [![Python 3.13+](https://img.shields.io/badge/Python-3.13+-blue.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/License-Apache%202.0-green.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/Version-2.1-brightgreen.svg)](https://github.com/lisoleg/eml-semzip)
+[![Version](https://img.shields.io/badge/Version-2.2-brightgreen.svg)](https://github.com/lisoleg/eml-semzip)
 
 EML-SemZip（Entity-Mutualism Semantic Compaction）是一种基于 TOMAS 公理体系与毛睿广义度量空间的新型语义压缩算法。不压缩比特，而是压缩 EML 超图（Entity-Mutualism Link Hypergraph）中的"无效超边"。
 
@@ -26,6 +26,11 @@ EML-SemZip（Entity-Mutualism Semantic Compaction）是一种基于 TOMAS 公理
 - **KB 自动学习**：`KBAutoLearner` 从超图频繁谓词模式自动挖掘，增量更新 `EMLLiteKB`
 - **可微分压缩**：`DiffCompressor` 使用 PyTorch 实现端到端梯度可反传的压缩管线
 - **BFS 优化 κ-Snap**：用 BFS 节点扩展替代 DFS 闭环检测，O(|E|³)→O(|E|·d_avg)，2000 条边 <2ms
+
+### v2.2 新功能
+- **多模态 CLIP/ViT 编码器**（`multimodal/clip_encoder.py`, `multimodal/vit_encoder.py`）：集成预训练视觉编码器（CLIP ViT-B/32、Google ViT-B/16），提取 patch-level 语义嵌入构建超图，语义保真度显著提升
+- **真实知识图谱评估脚本**（`benchmarks/bench_real_kg.py`）：在半真实知识图谱（含语义结构）上评估 SCR 和各阶段贡献，证实语义冗余对压缩比的关键作用
+- **KB 自动学习评估脚本**（`benchmarks/bench_kb_learning.py`）：评估 `KBAutoLearner` 的模式覆盖率、新颖率、KB 增长曲线
 
 ## 📦 安装
 

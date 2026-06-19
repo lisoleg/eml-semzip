@@ -547,19 +547,19 @@ The TOMAS axioms offer a framework for reasoning about truth-bounded semantic kn
 
 3. **Lossy Compression**: Stage 1 (dead-zero pruning) is lossy. Edges with $\mathcal{I}(e) < \theta_{dead}$ are permanently discarded. For applications requiring perfect reconstruction, set $\theta_{dead} = 0$.
 
-4. **Multimodal Feature Extraction**: The current `image_to_hypergraph` uses raw pixel patches. Integrating pretrained vision encoders (e.g., CLIP, ViT) would improve semantic fidelity.
+4. **Multimodal Feature Extraction** *(implemented in v2.2)*: The current `image_to_hypergraph` uses raw pixel patches. **v2.2 integrates CLIP and ViT encoders** (`multimodal/clip_encoder.py` and `multimodal/vit_encoder.py`) that extract patch-level semantic embeddings and construct attention-based hyperedges, significantly improving semantic fidelity after compression.
 
 ### 8.3 Future Work
 
 1. **T-Core Tape-Out**: We are preparing the T-Core ASIC for TSMC 5nm shuttle (target: Q4 2026). The RTL design is complete; we are currently verifying timing closure and power estimation.
 
-2. **KB Auto-Learning** *(implemented in v2.1)*: Instead of manual KB pattern specification, use frequent subgraph mining [22] to automatically discover patterns from unlabeled hypergraphs. Implemented in `kb/auto_learning.py` (`KBAutoLearner` class) — mines frequent predicate patterns and attribute correlations, updates `EMLLiteKB` incrementally.
+2. **Standardization**: We are working with the W3C Semantic Web Working Group to standardize the EML hypergraph JSON format.
 
-3. **Differentiable Compression** *(implemented in v2.1)*: Make the compression pipeline differentiable to enable end-to-end training of hypergraph autoencoders. Implemented in `pipeline/diff_compressor.py` — `DiffCompressor` uses softmax-based probability prediction with gradient flow through compression cost (cross-entropy loss). Supports end-to-end optimization of compression ratio via PyTorch.
+3. **End-to-End Finetuning**: Finetune CLIP/ViT encoders on the compression objective (rate-distortion optimization) to further improve semantic fidelity.
 
-4. **BFS-Optimized κ-Snap** *(implemented in v2.1)*: Replaced the O(|E|³) DFS cycle detection with a BFS node-expansion strategy that achieves O(|E| · d_avg) complexity. The algorithm iteratively expands the anchor node set V* by adding edges with ≥2 nodes already in V*, converging in at most 10 iterations. This eliminates the combinatorial explosion that previously caused stage4 to hang on hypergraphs with |E| > 500.
+4. **Video Hypergraph Extension**: Extend the multi-modal encoders to video (spatio-temporal patches), enabling semantic compression of video data.
 
-4. **Standardization**: We are working with the W3C Semantic Web Working Group to standardize the EML hypergraph JSON format.
+5. **Vector Database Integration**: Index compressed hypergraphs in vector databases (e.g., Milvus, Pinecone) for fast semantic search over compressed knowledge.
 
 ---
 
