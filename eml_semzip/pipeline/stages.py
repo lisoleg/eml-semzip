@@ -154,12 +154,16 @@ def stage4_ksnap_selection(
     keep_ratio: float,
     cycle_detector: Any = None,
 ) -> Tuple[set, List[HyperEdge], StageStats]:
-    """k-Snap Semantic Kernel Selection - select top edges by I_value.
+    """κ-Snap Semantic Kernel Selection — select top edges by I_value.
+
+    Uses BFS node-expansion instead of cycle detection to ensure the
+    selected edge set is "closed" under node adjacency.  This reduces
+    time complexity from O(|E|³) to O(|E|·d_avg).
 
     Args:
         edges_merged: List of merged hyperedges.
-        keep_ratio: Fraction of edges to keep (0.0 - 1.0).
-        cycle_detector: Optional cycle detector (unused, kept for API compatibility).
+        keep_ratio: Fraction of edges to keep (0.0 – 1.0).
+        cycle_detector: Ignored (kept for API compatibility).
 
     Returns:
         A tuple of (V_star, E_star, stats).
@@ -176,38 +180,36 @@ def stage4_ksnap_selection(
         )
         return set(), [], stats
 
-    # Sort by I_value descending
+    # 1. Sort by I_value descending, pick top-k
     sorted_edges = sorted(edges_merged, key=lambda e: e.I_value, reverse=True)
     k = max(1, int(len(sorted_edges) * keep_ratio))
+    E_star: List[HyperEdge] = list(sorted_edges[:k])
+    E_star_ids = set(e.edge_id for e in E_star)
 
-    # Select top-k edges
-    selected_edges = sorted_edges[:k]
-    E_star = selected_edges
-
-    # Build V_star: all nodes in selected edges
-    V_star = set()
+    # 2. Build V_star from top-k edges
+    V_star: Set[str] = set()
     for edge in E_star:
         V_star.update(edge.nodes)
 
-    # Only run cycle detection when we are actually pruning edges.
-    # If keep_ratio >= 1.0, all edges are already selected and
-    # cycle completion is unnecessary (O(n³) bottleneck).
-    cycles = []
+    # 3. BFS expansion — ensure closure under node adjacency
+    #    If an edge connects ≥2 nodes in V_star, add it and expand V_star.
+    #    Iterate until no more edges can be added (or max_iters reached).
     if keep_ratio < 1.0:
-        cycles = find_closed_cycles(edges_merged, min_length=3)
-    for cycle in cycles:
-        cycle_nodes = set()
-        for edge_id in cycle:
+        max_iters = 10
+        for _ in range(max_iters):
+            added = False
             for edge in edges_merged:
-                if edge.edge_id == edge_id:
-                    cycle_nodes.update(edge.nodes)
-                    break
-        if len(cycle_nodes) >= 3:
-            V_star.update(cycle_nodes)
-            for edge_id in cycle:
-                for edge in edges_merged:
-                    if edge.edge_id == edge_id and edge not in E_star:
-                        E_star.append(edge)
+                if edge.edge_id in E_star_ids:
+                    continue
+                # Add edge if ≥2 of its nodes are already in V_star
+                overlap = sum(1 for n in edge.nodes if n in V_star)
+                if overlap >= 2:
+                    E_star.append(edge)
+                    E_star_ids.add(edge.edge_id)
+                    V_star.update(edge.nodes)
+                    added = True
+            if not added:
+                break
 
     elapsed = (time.perf_counter() - start) * 1000.0
     stats = StageStats(
@@ -219,11 +221,11 @@ def stage4_ksnap_selection(
             "keep_ratio": keep_ratio,
             "k": k,
             "V_star_size": len(V_star),
-            "cycles_found": len(cycles),
+            "E_star_size": len(E_star),
+            "expansion_ratio": len(E_star) / max(k, 1),
         },
     )
     return V_star, E_star, stats
-
 
 def stage5_ans_encode(
     V_star: set,
