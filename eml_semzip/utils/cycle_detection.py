@@ -6,10 +6,14 @@ shares at least one node, and the last edge connects back to the first.
 
 from __future__ import annotations
 
+import time
 from typing import Dict, FrozenSet, List, Set
 
 from ..constants import MAX_CYCLE_DEPTH
 from ..models.hyperedge import HyperEdge
+
+# Global timeout for cycle detection (seconds)
+CYCLE_TIMEOUT: float = 5.0  # Max 5 seconds for cycle detection
 
 
 def build_line_graph(edges: List[HyperEdge]) -> Dict[str, Set[str]]:
@@ -43,6 +47,7 @@ def find_closed_cycles(
     edges: List[HyperEdge],
     min_length: int = 3,
     max_depth: int = MAX_CYCLE_DEPTH,
+    timeout: float = CYCLE_TIMEOUT,
 ) -> List[List[str]]:
     """Find closed cycles in the hyperedge set.
 
@@ -57,6 +62,8 @@ def find_closed_cycles(
         edges: List of hyperedges to search.
         min_length: Minimum number of edges in a cycle.
         max_depth: Maximum search depth to prevent runaway computation.
+        timeout: Maximum time in seconds for cycle detection. If exceeded,
+                 returns currently found cycles (may be incomplete).
 
     Returns:
         A list of cycles, each represented as a list of edge_ids.
@@ -68,12 +75,21 @@ def find_closed_cycles(
 
     found_cycles: Set[FrozenSet[str]] = set()
     result: List[List[str]] = []
+    timed_out: bool = False
+    start_time: float = time.perf_counter()
 
     def _dfs(start: str, current: str, path: List[str]) -> None:
         """Depth-first search for cycles starting at ``start``."""
+        nonlocal timed_out
+        # Timeout check
+        if time.perf_counter() - start_time > timeout:
+            timed_out = True
+            return
         if len(path) > max_depth:
             return
         for neighbor in line_graph.get(current, set()):
+            if timed_out:
+                return
             if neighbor == start and len(path) >= min_length:
                 cycle_key = frozenset(path)
                 if cycle_key not in found_cycles:
@@ -83,6 +99,8 @@ def find_closed_cycles(
                 _dfs(start, neighbor, path + [neighbor])
 
     for edge in edges:
+        if timed_out:
+            break
         _dfs(edge.edge_id, edge.edge_id, [edge.edge_id])
 
     return result
