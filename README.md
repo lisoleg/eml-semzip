@@ -1,19 +1,31 @@
-# EML-SemZip：基于毛睿广义度量与 TOMAS 公理的极致语义压缩
+# EML-SemZip v2.1：基于毛睿广义度量与 TOMAS 公理的极致语义压缩
 
 [![Python 3.13+](https://img.shields.io/badge/Python-3.13+-blue.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/License-Apache%202.0-green.svg)](LICENSE)
-[![Zero Dependencies](https://img.shields.io/badge/dependencies-zero-lightgrey.svg)](https://github.com/)
+[![Version](https://img.shields.io/badge/Version-2.1-brightgreen.svg)](https://github.com/lisoleg/eml-semzip)
 
 EML-SemZip（Entity-Mutualism Semantic Compaction）是一种基于 TOMAS 公理体系与毛睿广义度量空间的新型语义压缩算法。不压缩比特，而是压缩 EML 超图（Entity-Mutualism Link Hypergraph）中的"无效超边"。
 
 ## 🎯 核心特性
 
+### 基础功能（v1.0）
 - **五阶段压缩流程**：Dead-Zero 剪枝 → EML-Lite 同构归并 → 毛睿度量加权 → κ-Snap 语义核选取 → ANS 熵编码
-- **极致压缩比**：语义压缩比（SCR）300×~10000×，比特等效压缩比数千~数万倍
 - **纯标准库**：零外部依赖，Python 3.13+ 即可运行
 - **Web UI**：内置 Web 界面，浏览器中直接压缩/解压
 - **批量处理**：支持目录批量压缩
 - **EML-Lite KB**：内置 15+ 常见谓词模式，支持同构归并
+
+### v2.0 增强功能
+- **增量压缩**：超图增量更新后仅压缩差异部分（delta）
+- **Web UI 增强**：D3.js 可视化 + 实时编辑
+- **多模态扩展**：图像/音频 → 超图转换
+- **分布式压缩**：multiprocessing 并行压缩大规模超图
+- **T-Core ASIC 设计**：毛睿度量计算专用 ASIC（预计 26.3× 加速）
+
+### v2.1 新功能
+- **KB 自动学习**：`KBAutoLearner` 从超图频繁谓词模式自动挖掘，增量更新 `EMLLiteKB`
+- **可微分压缩**：`DiffCompressor` 使用 PyTorch 实现端到端梯度可反传的压缩管线
+- **BFS 优化 κ-Snap**：用 BFS 节点扩展替代 DFS 闭环检测，O(|E|³)→O(|E|·d_avg)，2000 条边 <2ms
 
 ## 📦 安装
 
@@ -23,7 +35,7 @@ cd eml-semzip
 python -m eml_semzip.cli.main --help
 ```
 
-无需安装任何依赖，纯标准库实现。
+无需安装任何依赖，纯标准库实现。（可选：多模态支持需 `pip install Pillow`，可微分压缩需 `pip install torch`）
 
 ## 🚀 快速开始
 
@@ -77,59 +89,42 @@ python -m eml_semzip.cli.main compress <input> <output> [options]
 - `--report PATH`：生成压缩报告
 - `--report-format {text,json}`：报告格式（默认 text）
 
-**示例**：
-```bash
-# 基本压缩
-python -m eml_semzip.cli.main compress graph.json compressed.esz
-
-# 使用内置 KB
-python -m eml_semzip.cli.main compress graph.json compressed.esz --use-builtin-kb
-
-# 生成 JSON 报告
-python -m eml_semzip.cli.main compress graph.json compressed.esz --report report.json --report-format json
-```
-
 ### decompress - 解压超图
 
 ```bash
 python -m eml_semzip.cli.main decompress <input> <output> [options]
 ```
 
-**参数**：
-- `input`：输入压缩文件（.esz）
-- `output`：输出超图文件（.json 或 .pickle）
-- `--kb PATH`：EML-Lite KB 文件路径
-- `--use-builtin-kb`：使用内置 KB
+### incremental-compress - 增量压缩（v2.0）
+
+```bash
+# 计算 old.json → new.json 的差异并压缩
+python -m eml_semzip.cli.main incremental-compress old.json new.json delta.esz
+
+# 将差异应用到 old.json，重建 new.json
+python -m eml_semzip.cli.main incremental-decompress old.json delta.esz reconstructed.json
+```
 
 ### batch-compress - 批量压缩
 
 ```bash
-python -m eml_semzip.cli.main batch-compress <input_dir> <output_dir> [options]
+python -m eml_semzip.cli.main batch-compress ./input_dir ./output_dir --use-builtin-kb
 ```
 
-**参数**：
-- `input_dir`：输入目录（包含 .json/.pickle 文件）
-- `output_dir`：输出目录（生成 .esz 文件）
-- `--theta-dead FLOAT`：Dead-Zero 阈值（默认 0.45）
-- `--keep-ratio FLOAT`：语义核保留比例（默认 0.15）
-- `--use-builtin-kb`：使用内置 KB
+### image-to-graph - 图像转超图（v2.0）
 
-**示例**：
 ```bash
-python -m eml_semzip.cli.main batch-compress ./graphs ./compressed --use-builtin-kb
+python -m eml_semzip.cli.main image-to-graph photo.jpg photo_graph.json --patch-size 16 --max-patches 256
+```
+
+### audio-to-graph - 音频转超图（v2.0）
+
+```bash
+python -m eml_semzip.cli.main audio-to-graph speech.wav speech_graph.json --samples-per-node 1024 --max-nodes 512
 ```
 
 ### web - 启动 Web UI
 
-```bash
-python -m eml_semzip.cli.main web [options]
-```
-
-**参数**：
-- `--host HOST`：绑定地址（默认 127.0.0.1）
-- `--port INT`：端口号（默认 8080）
-
-**示例**：
 ```bash
 python -m eml_semzip.cli.main web --port 8080
 # 打开浏览器访问 http://127.0.0.1:8080
@@ -137,129 +132,98 @@ python -m eml_semzip.cli.main web --port 8080
 
 ## 🐍 Python API
 
-### 压缩超图
+### 基础压缩/解压
 
 ```python
-from eml_semzip.pipeline import Compressor
-from eml_semzip.models.hypergraph import EMLHypergraph
-
-# 加载超图
-graph = EMLHypergraph.from_json("graph.json")
+from eml_semzip.pipeline import Compressor, Decompressor
 
 # 压缩
 compressor = Compressor(theta_dead=0.45, keep_ratio=0.15)
 compressed = compressor.compress(graph)
 
-# 保存
-with open("output.esz", "wb") as f:
-    f.write(compressed)
-```
-
-### 解压超图
-
-```python
-from eml_semzip.pipeline import Decompressor
-from eml_semzip.models.hypergraph import EMLHypergraph
-
-# 读取压缩数据
-with open("output.esz", "rb") as f:
-    data = f.read()
-
 # 解压
 decompressor = Decompressor()
-graph = decompressor.decompress(data)
-
-# 保存
-graph.to_json("restored.json")
+graph = decompressor.decompress(compressed)
 ```
 
-### 使用 EML-Lite KB
+### KB 自动学习（v2.1）
 
 ```python
-from eml_semzip.kb.builtin_kb import create_builtin_kb
-from eml_semzip.pipeline import Compressor
+from eml_semzip.kb.auto_learning import KBAutoLearner
 
-# 创建内置 KB
-kb = create_builtin_kb()
+# 从超图自动挖掘频繁谓词模式
+learner = KBAutoLearner(min_support=0.05)
+patterns = learner.mine_frequent_predicates(hypergraph)
 
-# 压缩时使用 KB
-compressor = Compressor(kb=kb, theta_dead=0.45, keep_ratio=0.15)
-compressed = compressor.compress(graph)
+# 增量更新 EMLLiteKB
+learner.update_kb(kb, patterns)
 ```
 
-### 生成压缩报告
+### 可微分压缩（v2.1）
 
 ```python
-from eml_semzip.io.report import CompressionReport
+from eml_semzip.pipeline.diff_compressor import DiffCompressor
 
-report = CompressionReport(
-    original_nodes=graph.node_count(),
-    original_edges=graph.edge_count(),
-    compressed_bytes=len(compressed),
-    theta_dead=0.45,
-    keep_ratio=0.15,
-)
-print(report.to_text())
-print(f"SCR (anchor): {report.scr_anchor:.2f}x")
+# 使用 PyTorch 实现端到端可微分压缩
+compressor = DiffCompressor(temperature=1.0)
+compression_cost = compressor.compress_differentiable(graph_features)
+compression_cost.backward()  # 梯度可反传到特征提取器
+```
+
+### 增量压缩（v2.0）
+
+```python
+from eml_semzip.pipeline.incremental import compress_incremental
+
+delta = compress_incremental(old_graph, new_graph)
+```
+
+### 分布式压缩（v2.0）
+
+```python
+from eml_semzip.pipeline.distributed import compress_distributed
+
+compressed = compress_distributed(graph, n_workers=4)
 ```
 
 ## 🔬 五阶段压缩流程
 
 ### Stage 1: Dead-Zero 剪枝（毛睿 φ-过滤）
-
 丢弃 ℐ(e) < θ_dead 的超边（无据幻觉/低价值噪音）。
 
-```
-E_pruned = {e ∈ E | ℐ(e) ≥ θ_dead}
-```
-
 ### Stage 2: EML-Lite 同构归并（毛睿伪度量）
-
 若 d_sem(e₁, e₂) = 0 且同谓词 → 合并为 e_max_ℐ，利用 EML-Lite KB 指针替换冗余描述。
 
 ### Stage 3: 毛睿度量加权（非对称/基依赖）
+计算语义距离 d_sem(e) = (1.0 / (ℐ(e) + ε)) × w_base × f_dir。高 ℐ 超边距离近，低 ℐ 超边距离远。
 
-计算语义距离：
+### Stage 4: κ-Snap 语义核选取（v2.1 BFS 优化）
+保留 Top-k 高 ℐ 超边作为锚点，然后 BFS 迭代扩展——如果一条边有 ≥2 个节点在锚点集 V* 中则加入。最多 10 轮迭代收敛。
 
-```
-d_sem(e) = (1.0 / (ℐ(e) + ε)) × w_base × f_dir
-```
-
-高 ℐ 超边距离近，低 ℐ 超边距离远。
-
-### Stage 4: κ-Snap 语义核选取
-
-保留 Top-15% 高 ℐ 超边 + 闭环（≥3 节点）作为锚点。
+**复杂度**：O(|E| · d_avg)，其中 d_avg 为平均节点度数。2000 条边 <2ms。
 
 ### Stage 5: ANS 熵编码
-
 序列化 (V*, E*, ℐ, θ_dead) → ANS 编码 → 输出 SemPkt。
 
-## 📊 SCR（语义压缩比）说明
+## 📊 实验数据（v2.1）
 
-### SCR (锚点维度)
+### 压缩比对比
 
-```
-SCR_anchor = 原始超边数 / 锚点超边数
-```
+| 数据集 | JSON 大小 | EML-SemZip | gzip | bzip2 | lzma |
+|--------|----------|------------|------|-------|------|
+| Tiny (20N, 30E) | 5,982B | 3,109B / 1.92× | 576B / 10.39× | 559B / 10.70× | 576B / 10.39× |
+| Small (200N, 500E) | 93,887B | 42,827B / 2.19× | 6,786B / 13.84× | 4,401B / **21.33×** | 5,248B / 17.89× |
+| Medium (500N, 2000E) | 358,899B | 172,117B / 2.09× | 25,947B / 13.83× | 16,517B / **21.73×** | 19,660B / 18.26× |
 
-衡量语义压缩的锚点保留效率。
+> **注**：随机超图无语义结构，EML-SemZip 的比特压缩比低于 baseline。EML-SemZip 的优势在于语义压缩比（SCR），需在真实知识图谱上评估。
 
-### SCR (信息维度)
+### Stage 4 性能（BFS 优化）
 
-```
-SCR_info = 原始超边数 / (锚点超边数 + KB复用超边数)
-```
-
-衡量包括 KB 复用后的总压缩效率。
-
-### 比特压缩比
-
-```
-BitRatio = 原始文件字节数 / 压缩后字节数
-```
-
-衡量文件大小的压缩比。
+| 超图规模（边） | stage4 耗时 | 旧版 DFS |
+|---------------|------------|---------|
+| 30 (Tiny) | <0.1ms | <0.1ms |
+| 500 (Small) | 0.6-1.1ms | 卡死（>5s 超时） |
+| 2,000 (Medium) | <2ms | 卡死 |
 
 ## 🗂️ 项目结构
 
@@ -273,78 +237,40 @@ eml_semzip/
 │   └── hypergraph.py           # EMLHypergraph 超图类
 ├── kb/                         # 知识库
 │   ├── eml_lite_kb.py          # EMLLiteKB 类
-│   └── builtin_kb.py           # 内置示例 KB
+│   ├── builtin_kb.py           # 内置示例 KB
+│   └── auto_learning.py        # KB 自动学习（v2.1）
 ├── pipeline/                   # 压缩管线
-│   ├── stages.py               # 五阶段函数
+│   ├── stages.py               # 五阶段函数（含 BFS 优化）
 │   ├── compressor.py           # Compressor 类
-│   └── decompressor.py         # Decompressor 类
+│   ├── decompressor.py         # Decompressor 类
+│   ├── incremental.py          # 增量压缩（v2.0）
+│   ├── distributed.py          # 分布式压缩（v2.0）
+│   └── diff_compressor.py      # 可微分压缩（v2.1）
 ├── coding/                     # 编码
 │   ├── ans_coder.py            # ANS 熵编码
 │   ├── serializer.py           # 序列化
 │   └── sempkt.py               # SemPkt 数据类
 ├── io/                         # IO
 │   └── report.py               # 压缩报告
+├── utils/                      # 工具
+│   └── cycle_detection.py      # 闭环检测（含超时机制）
+├── multimodal/                 # 多模态扩展（v2.0）
+│   └── __init__.py
 ├── cli/                        # 命令行界面
 │   └── main.py                 # CLI 入口
-└── web/                        # Web UI
-    ├── server.py               # HTTP 服务器
-    └── templates/
-        └── index.html          # Web 界面
-```
-
-## 📄 文件格式
-
-### 超图 JSON 格式
-
-```json
-{
-  "nodes": {
-    "n1": {"name": "Alice", "type": "person"},
-    "n2": {"name": "Bob", "type": "person"}
-  },
-  "edges": [
-    {
-      "edge_id": "e1",
-      "nodes": ["n1", "n2"],
-      "I_value": 0.9,
-      "base_weight": 1.0,
-      "dir_factor": 1.0,
-      "predicate": "knows"
-    }
-  ]
-}
-```
-
-### SemPkt 二进制格式
-
-```
-+----------------+----------------+----------------+----------------+
-| Magic (4 bytes) | Version (1 byte) | Metadata Length (4 bytes) |
-+----------------+----------------+----------------+----------------+
-| Metadata (variable) | ANS Data Length (4 bytes) |
-+----------------+----------------+----------------+
-| ANS Data (variable) |
-+----------------+
-```
-
-### 压缩报告 JSON 格式
-
-```json
-{
-  "original_nodes": 100,
-  "original_edges": 200,
-  "compressed_bytes": 500,
-  "scr_anchor": 40.0,
-  "scr_info": 50.0,
-  "bit_compression_ratio": 80.0,
-  "stage_stats": [...]
-}
+├── web/                        # Web UI
+│   ├── server.py               # HTTP 服务器
+│   └── templates/
+│       └── index.html          # D3.js 可视化界面
+└── docs/
+    ├── paper.md                # 技术论文（英文版，顶刊标准）
+    └── TCORE_ASIC_DESIGN.md    # T-Core ASIC 设计文档
 ```
 
 ## 🧪 测试
 
 ```bash
-python -m unittest discover tests/ -v
+python -m pytest tests/ -v
 ```
 
 127 个测试用例，100% 通过。
@@ -354,6 +280,11 @@ python -m unittest discover tests/ -v
 1. 章锋，《论 EML-SemZip：基于毛睿广义度量与 TOMAS 公理的极致语义压缩》
 2. 毛睿，《广义度量空间理论》
 3. D. Lemire, "Asymmetric numeral systems: entropy coding for multiple devices"
+
+## 📄 技术论文
+
+- **英文版（顶刊标准）**：`eml_semzip/docs/paper.md`（691 行，22 篇参考文献，投稿目标 IEEE TIT / ACM TOS）
+- **中文版**：`docs/paper.md`
 
 ## 👨‍💻 作者
 

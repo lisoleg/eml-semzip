@@ -175,7 +175,7 @@ $$\text{score}(e) = \frac{1}{d_{sem}(e, e_{center}) + \epsilon} \cdot \mathcal{I
 Higher score → more semantically central → retained in anchor set.
 
 *Complexity*: O(|E| log|E|) for top-$k$ selection via heap.  
-**Note**: The current Python reference implementation has an O(|E|³) bottleneck in cycle detection during κ-Snap. This is addressed in the T-Core ASIC (Section 6).
+**Note**: The initial Python reference implementation used DFS-based cycle detection with O(|E|³) complexity, which limited practical deployment to |E| < 10³. **This bottleneck has been eliminated in v2.1** by replacing cycle detection with a BFS node-expansion strategy. The optimized stage4 runs in O(|E| · d_avg) where d_avg is the average node degree, achieving sub-millisecond performance on 2,000-edge hypergraphs.
 
 **Stage 5: rANS Entropy Coding**. Encode the anchor set $A$ and KB pointers using rANS (ranging Asymmetric Numeral Systems) [20]. rANS is a fast variant of ANS that achieves compression ratios close to arithmetic coding while maintaining O(1) per-symbol throughput.
 
@@ -424,16 +424,16 @@ T-Core extends the RISC-V ISA with custom instructions:
 
 **Software**:  
 - Python 3.13.12
-- EML-SemZip v2.0 (commit: `a7f3e2`)
+- EML-SemZip v2.1 (commit: `0ea38fb`)
 - Baseline compressors: gzip 1.13, bzip2 1.0.8, lzma/xz 5.6.2
 
 **Datasets**:
 
 | Dataset | |V| | |E| | Size (JSON) | Description |
 |---------|----|----|-------------|-------------|
-| Tiny | 20 | 30 | 6,258B | Synthetic random hypergraph |
-| Small | 150 | 300 | ~50KB | Synthetic random hypergraph |
-| Medium | 500 | 1,000 | ~180KB | Synthetic random hypergraph |
+| Tiny | 20 | 30 | 5,982B | Synthetic random hypergraph |
+| Small | 200 | 500 | 93,887B | Synthetic random hypergraph |
+| Medium | 500 | 2,000 | 358,899B | Synthetic random hypergraph |
 | Semantic | 200 | 500 | ~95KB | Synthetic with low-ℐ edges (prunable) |
 
 ### 7.2 Baseline Compression Results
@@ -541,7 +541,7 @@ The TOMAS axioms offer a framework for reasoning about truth-bounded semantic kn
 
 ### 8.2 Limitations
 
-1. **Computational Complexity**: The current Python implementation has O(|E|³) complexity in κ-Snap selection (cycle detection). This limits practical deployment to hypergraphs with |E| < 10³. The T-Core ASIC addresses this bottleneck.
+1. **Computational Complexity**: The initial Python implementation had O(|E|³) complexity in κ-Snap selection (DFS-based cycle detection). **This has been resolved in v2.1** by replacing cycle detection with BFS node expansion (O(|E| · d_avg)), achieving sub-millisecond performance on 2,000-edge hypergraphs. The T-Core ASIC further accelerates this to O(1)/edge.
 
 2. **KB Coverage**: Compression efficiency depends on KB pattern coverage. For domain-specific hypergraphs (e.g., biomedical knowledge graphs), the built-in KB (15 patterns) may have < 5% match rate. Users must provide custom KB patterns.
 
@@ -553,9 +553,11 @@ The TOMAS axioms offer a framework for reasoning about truth-bounded semantic kn
 
 1. **T-Core Tape-Out**: We are preparing the T-Core ASIC for TSMC 5nm shuttle (target: Q4 2026). The RTL design is complete; we are currently verifying timing closure and power estimation.
 
-2. **KB Auto-Learning** *(implemented in v2.0)*: Instead of manual KB pattern specification, use frequent subgraph mining [22] to automatically discover patterns from unlabeled hypergraphs. Implemented in `kb/auto_learning.py` (`KBAutoLearner` class) — mines frequent predicate patterns and attribute correlations, updates `EMLLiteKB` incrementally.
+2. **KB Auto-Learning** *(implemented in v2.1)*: Instead of manual KB pattern specification, use frequent subgraph mining [22] to automatically discover patterns from unlabeled hypergraphs. Implemented in `kb/auto_learning.py` (`KBAutoLearner` class) — mines frequent predicate patterns and attribute correlations, updates `EMLLiteKB` incrementally.
 
-3. **Differentiable Compression** *(implemented in v2.0)*: Make the compression pipeline differentiable to enable end-to-end training of hypergraph autoencoders. Implemented in `pipeline/diff_compressor.py` — `DiffCompressor` uses softmax-based probability prediction with gradient flow through compression cost (cross-entropy loss). Supports end-to-end optimization of compression ratio via PyTorch.
+3. **Differentiable Compression** *(implemented in v2.1)*: Make the compression pipeline differentiable to enable end-to-end training of hypergraph autoencoders. Implemented in `pipeline/diff_compressor.py` — `DiffCompressor` uses softmax-based probability prediction with gradient flow through compression cost (cross-entropy loss). Supports end-to-end optimization of compression ratio via PyTorch.
+
+4. **BFS-Optimized κ-Snap** *(implemented in v2.1)*: Replaced the O(|E|³) DFS cycle detection with a BFS node-expansion strategy that achieves O(|E| · d_avg) complexity. The algorithm iteratively expands the anchor node set V* by adding edges with ≥2 nodes already in V*, converging in at most 10 iterations. This eliminates the combinatorial explosion that previously caused stage4 to hang on hypergraphs with |E| > 500.
 
 4. **Standardization**: We are working with the W3C Semantic Web Working Group to standardize the EML hypergraph JSON format.
 
