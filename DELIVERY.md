@@ -1,8 +1,8 @@
 # EML-SemZip 交付总结
 
-**日期**：2026-06-19  
-**版本**：v2.1  
-**Git Commit**：0ea38fb  
+**日期**：2026-06-21  
+**版本**：v2.2  
+**Git Commit**：80fb855  
 
 ---
 
@@ -13,6 +13,42 @@
 | v1.0 | 2026-06-18 | f777d15 | 五阶段压缩、CLI、Web UI、127 测试 |
 | v2.0 | 2026-06-18 | 4dec78a | 增量压缩、分布式压缩、多模态、T-Core ASIC、顶刊论文 |
 | v2.1 | 2026-06-19 | 0ea38fb | KB 自动学习、可微分压缩、BFS 优化 κ-Snap |
+| v2.2 | 2026-06-21 | 80fb855 | CLIP/ViT 编码器、真实 KG 评估、KB 学习评估 |
+
+---
+
+## ✅ v2.2 新增功能
+
+### 1. CLIP 编码器（multimodal/clip_encoder.py）
+- CLIPEncoder 类：集成 OpenAI CLIP-ViT-B/32
+- extract_patch_embeddings()：提取 patch-level 语义嵌入
+- image_to_hypergraph_clip()：用余弦相似度构建语义超边
+- compute_fidelity_score()：评估压缩后语义保真度
+- 依赖：pip install transformers accelerate
+- Commit：80fb855
+
+### 2. ViT 编码器（multimodal/vit_encoder.py）
+- ViTEncoder 类：集成 Google ViT-B/16
+- extract_patch_features()：提取 patch 特征 + [CLS] 全局嵌入
+- build_attention_hyperedges()：用 attention 权重构建超边
+- compute_fidelity_score()：语义保真度评估
+- Commit：80fb855
+
+### 3. 真实知识图谱评估脚本（benchmarks/bench_real_kg.py）
+- 生成语义 KG（有类型/模式）vs. 随机 KG（无语义结构）
+- 运行完整 5 阶段压缩，输出 SCR、各阶段贡献、baseline 对比
+- 支持从真实 RDF 文件加载（--rdf-path）
+- Commit：80fb855
+
+### 4. KB 自动学习评估脚本（benchmarks/bench_kb_learning.py）
+- 生成渐进式知识图谱（每轮引入部分新模式）
+- 指标：模式覆盖率、新颖率、KB 增长曲线、压缩改进
+- Commit：80fb855
+
+### 5. 多模态模块导出更新（multimodal/__init__.py）
+- 导出 CLIPEncoder、ViTEncoder、compute_image_fidelity
+- image_to_hypergraph() 支持 encoder="clip" 或 "vit"
+- Commit：80fb855
 
 ---
 
@@ -98,7 +134,7 @@
 
 ---
 
-## 📊 实验数据（v2.1）
+## 📊 实验数据（v2.2）
 
 ### 压缩比对比（三数据集）
 
@@ -122,8 +158,8 @@
 
 | 文档 | 位置 | 说明 |
 |------|------|------|
-| 使用文档 | `README.md` | v2.1 完整使用指南 |
-| 包文档 | `eml_semzip/README.md` | v2.1 包级文档 |
+| 使用文档 | `README.md` | v2.2 完整使用指南 |
+| 包文档 | `eml_semzip/README.md` | v2.2 包级文档 |
 | 技术论文（英文） | `eml_semzip/docs/paper.md` | 691 行，顶刊标准 |
 | 技术论文（中文） | `docs/paper.md` | 中文版论文 |
 | ASIC 设计 | `eml_semzip/docs/TCOR_ASIC_DESIGN.md` | T-Core ASIC RTL + ISA |
@@ -136,7 +172,7 @@
 
 - **仓库**：https://github.com/lisoleg/eml-semzip
 - **分支**：main
-- **最新 Commit**：`0ea38fb`
+- **最新 Commit**：`80fb855`
 - **许可证**：Apache 2.0
 
 ---
@@ -172,6 +208,6 @@
 
 ---
 
-**交付完成时间**：2026-06-19 08:53 GMT+8  
+**交付完成时间**：2026-06-21 08:30 GMT+8  
 **交付团队**：SoftwareCompany (Xu, Gao, Kou, Yan)  
 **主理人**：齐活林（Qi）
